@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
-import ChessBoard from './ChessBoard';
+
+// Lazy load the ChessBoard component (includes chess.js and react-chessboard)
+const ChessBoard = lazy(() => import('./ChessBoard'));
 
 interface ChessMessageProps {
   pgn?: string;
@@ -59,12 +61,18 @@ export default function ChessMessage({ pgn, fen, description, compact = false }:
       </div>
 
       <div className="flex justify-center">
-        <ChessBoard
-          initialPgn={pgn}
-          initialFen={fen}
-          readOnly={true}
-          showControls={true}
-        />
+        <Suspense fallback={
+          <div className="flex items-center justify-center p-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600"></div>
+          </div>
+        }>
+          <ChessBoard
+            initialPgn={pgn}
+            initialFen={fen}
+            readOnly={true}
+            showControls={true}
+          />
+        </Suspense>
       </div>
     </div>
   );

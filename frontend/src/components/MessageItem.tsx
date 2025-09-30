@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { Message } from '../types';
@@ -7,8 +7,10 @@ import { EllipsisVerticalIcon, PencilIcon, TrashIcon, ChatBubbleLeftIcon } from 
 import MessageReactions from './MessageReactions';
 import EmojiPicker from './EmojiPicker';
 import AttachmentDisplay from './AttachmentDisplay';
-import ChessMessage from './ChessMessage';
 import { renderMentions } from '../utils/mentionParser';
+
+// Lazy load ChessMessage to avoid loading chess libraries unless needed
+const ChessMessage = lazy(() => import('./ChessMessage'));
 
 interface MessageItemProps {
   message: Message;
@@ -164,12 +166,18 @@ export default function MessageItem({ message, onEdit, onDelete, onAddReaction, 
 
             {/* Chess Game */}
             {message.messageType === 'chess_game' && (
-              <ChessMessage
-                pgn={message.metadata?.pgn}
-                fen={message.metadata?.fen}
-                description={message.metadata?.description}
-                compact={true}
-              />
+              <Suspense fallback={
+                <div className="flex items-center justify-center p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-amber-600"></div>
+                </div>
+              }>
+                <ChessMessage
+                  pgn={message.metadata?.pgn}
+                  fen={message.metadata?.fen}
+                  description={message.metadata?.description}
+                  compact={true}
+                />
+              </Suspense>
             )}
 
             {/* Attachments */}

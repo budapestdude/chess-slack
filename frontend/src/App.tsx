@@ -1,10 +1,13 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
+import { lazy, Suspense } from 'react';
 import { RootState } from './store';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import WorkspacesListPage from './pages/WorkspacesListPage';
-import WorkspacePage from './pages/WorkspacePage';
+
+// Lazy load all page components for better code splitting
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const WorkspacesListPage = lazy(() => import('./pages/WorkspacesListPage'));
+const WorkspacePage = lazy(() => import('./pages/WorkspacePage'));
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token } = useSelector((state: RootState) => state.auth);
@@ -16,59 +19,70 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return !token ? <>{children}</> : <Navigate to="/workspaces" />;
 }
 
+// Loading fallback component
+function LoadingSpinner() {
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+    </div>
+  );
+}
+
 export default function App() {
   return (
-    <Routes>
-      <Route
-        path="/login"
-        element={
-          <PublicRoute>
-            <LoginPage />
-          </PublicRoute>
-        }
-      />
-      <Route
-        path="/register"
-        element={
-          <PublicRoute>
-            <RegisterPage />
-          </PublicRoute>
-        }
-      />
-      <Route
-        path="/workspaces"
-        element={
-          <PrivateRoute>
-            <WorkspacesListPage />
-          </PrivateRoute>
-        }
-      />
-      <Route
-        path="/workspace/:workspaceId"
-        element={
-          <PrivateRoute>
-            <WorkspacePage />
-          </PrivateRoute>
-        }
-      />
-      <Route
-        path="/workspace/:workspaceId/channel/:channelId"
-        element={
-          <PrivateRoute>
-            <WorkspacePage />
-          </PrivateRoute>
-        }
-      />
-      <Route
-        path="/workspace/:workspaceId/dm/:dmGroupId"
-        element={
-          <PrivateRoute>
-            <WorkspacePage />
-          </PrivateRoute>
-        }
-      />
-      <Route path="/" element={<Navigate to="/workspaces" />} />
-      <Route path="*" element={<Navigate to="/workspaces" />} />
-    </Routes>
+    <Suspense fallback={<LoadingSpinner />}>
+      <Routes>
+        <Route
+          path="/login"
+          element={
+            <PublicRoute>
+              <LoginPage />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <PublicRoute>
+              <RegisterPage />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/workspaces"
+          element={
+            <PrivateRoute>
+              <WorkspacesListPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/workspace/:workspaceId"
+          element={
+            <PrivateRoute>
+              <WorkspacePage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/workspace/:workspaceId/channel/:channelId"
+          element={
+            <PrivateRoute>
+              <WorkspacePage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/workspace/:workspaceId/dm/:dmGroupId"
+          element={
+            <PrivateRoute>
+              <WorkspacePage />
+            </PrivateRoute>
+          }
+        />
+        <Route path="/" element={<Navigate to="/workspaces" />} />
+        <Route path="*" element={<Navigate to="/workspaces" />} />
+      </Routes>
+    </Suspense>
   );
 }
