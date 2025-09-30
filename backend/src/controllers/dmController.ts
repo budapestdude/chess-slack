@@ -3,81 +3,42 @@ import pool from '../database/db';
 import { AuthRequest } from '../types';
 import { io } from '../index';
 import notificationService from '../services/notificationService';
+import { ForbiddenError } from '../errors';
+import logger from '../utils/logger';
 
 export const getOrCreateDM = async (req: AuthRequest, res: Response) => {
-  try {
-    const { workspaceId, userIds } = req.body;
-    const userId = req.userId!;
+  const { workspaceId, userIds } = req.body;
+  const userId = req.userId!;
 
-    // Verify user is member of workspace
-    const workspaceMember = await pool.query(
-      'SELECT 1 FROM workspace_members WHERE workspace_id = $1 AND user_id = $2',
-      [workspaceId, userId]
-    );
+  // Verify user is member of workspace
+  const workspaceMember = await pool.query(
+    'SELECT 1 FROM workspace_members WHERE workspace_id = $1 AND user_id = $2',
+    [workspaceId, userId]
+  );
 
-    if (workspaceMember.rows.length === 0) {
-      return res.status(403).json({ error: 'Not a member of this workspace' });
-    }
+  if (workspaceMember.rows.length === 0) {
+    throw new ForbiddenError('Not a member of this workspace');
+  }
 
-    // Include current user and sort for consistent lookup
-    const allUserIds = [...userIds, userId].sort();
-    const isGroup = allUserIds.length > 2;
+  // Include current user and sort for consistent lookup
+  const allUserIds = [...userIds, userId].sort();
+  const isGroup = allUserIds.length > 2;
 
-    // Check if DM group already exists
-    const existingDM = await pool.query(
-      `SELECT dg.id, dg.workspace_id, dg.is_group, dg.created_at
-       FROM dm_groups dg
-       WHERE dg.workspace_id = $1 AND dg.is_group = $2
-       AND (
-         SELECT array_agg(dgm.user_id ORDER BY dgm.user_id)
-         FROM dm_group_members dgm
-         WHERE dgm.dm_group_id = dg.id
-       ) = $3`,
-      [workspaceId, isGroup, allUserIds]
-    );
+  // Check if DM group already exists
+  const existingDM = await pool.query(
+    `SELECT dg.id, dg.workspace_id, dg.is_group, dg.created_at
+     FROM dm_groups dg
+     WHERE dg.workspace_id = $1 AND dg.is_group = $2
+     AND (
+       SELECT array_agg(dgm.user_id ORDER BY dgm.user_id)
+       FROM dm_group_members dgm
+       WHERE dgm.dm_group_id = dg.id
+     ) = $3`,
+    [workspaceId, isGroup, allUserIds]
+  );
 
-    if (existingDM.rows.length > 0) {
-      const dmGroupId = existingDM.rows[0].id;
-
-      // Fetch members
-      const membersResult = await pool.query(
-        `SELECT u.id, u.username, u.display_name, u.avatar_url, u.status
-         FROM dm_group_members dgm
-         JOIN users u ON dgm.user_id = u.id
-         WHERE dgm.dm_group_id = $1`,
-        [dmGroupId]
-      );
-
-      res.json({
-        id: existingDM.rows[0].id,
-        workspaceId: existingDM.rows[0].workspace_id,
-        isGroup: existingDM.rows[0].is_group,
-        members: membersResult.rows.map(row => ({
-          id: row.id,
-          username: row.username,
-          displayName: row.display_name,
-          avatarUrl: row.avatar_url,
-          status: row.status,
-        })),
-        createdAt: existingDM.rows[0].created_at,
-      });
-    }
-
-    // Create new DM group
-    const newDM = await pool.query(
-      'INSERT INTO dm_groups (workspace_id, is_group) VALUES ($1, $2) RETURNING id, workspace_id, is_group, created_at',
-      [workspaceId, isGroup]
-    );
-
-    const dmGroupId = newDM.rows[0].id;
-
-    // Add members
-    for (const uid of allUserIds) {
-      await pool.query(
-        'INSERT INTO dm_group_members (dm_group_id, user_id) VALUES ($1, $2)',
-        [dmGroupId, uid]
-      );
-    }
+  if (existingDM.rows.length > 0) {
+    const dmGroupId = existingDM.rows[0].id;
 
     // Fetch members
     const membersResult = await pool.query(
@@ -88,10 +49,10 @@ export const getOrCreateDM = async (req: AuthRequest, res: Response) => {
       [dmGroupId]
     );
 
-    const dmGroup = {
-      id: newDM.rows[0].id,
-      workspaceId: newDM.rows[0].workspace_id,
-      isGroup: newDM.rows[0].is_group,
+    return res.json({
+      id: existingDM.rows[0].id,
+      workspaceId: existingDM.rows[0].workspace_id,
+      isGroup: existingDM.rows[0].is_group,
       members: membersResult.rows.map(row => ({
         id: row.id,
         username: row.username,
@@ -99,19 +60,55 @@ export const getOrCreateDM = async (req: AuthRequest, res: Response) => {
         avatarUrl: row.avatar_url,
         status: row.status,
       })),
-      createdAt: newDM.rows[0].created_at,
-    };
-
-    // Broadcast to all members
-    allUserIds.forEach(uid => {
-      io.in(`user:${uid}`).emit('dm-created', dmGroup);
+      createdAt: existingDM.rows[0].created_at,
     });
-
-    res.status(201).json(dmGroup);
-  } catch (error) {
-    console.error('Get or create DM error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
   }
+
+  // Create new DM group
+  const newDM = await pool.query(
+    'INSERT INTO dm_groups (workspace_id, is_group) VALUES ($1, $2) RETURNING id, workspace_id, is_group, created_at',
+    [workspaceId, isGroup]
+  );
+
+  const dmGroupId = newDM.rows[0].id;
+
+  // Add members
+  for (const uid of allUserIds) {
+    await pool.query(
+      'INSERT INTO dm_group_members (dm_group_id, user_id) VALUES ($1, $2)',
+      [dmGroupId, uid]
+    );
+  }
+
+  // Fetch members
+  const membersResult = await pool.query(
+    `SELECT u.id, u.username, u.display_name, u.avatar_url, u.status
+     FROM dm_group_members dgm
+     JOIN users u ON dgm.user_id = u.id
+     WHERE dgm.dm_group_id = $1`,
+    [dmGroupId]
+  );
+
+  const dmGroup = {
+    id: newDM.rows[0].id,
+    workspaceId: newDM.rows[0].workspace_id,
+    isGroup: newDM.rows[0].is_group,
+    members: membersResult.rows.map(row => ({
+      id: row.id,
+      username: row.username,
+      displayName: row.display_name,
+      avatarUrl: row.avatar_url,
+      status: row.status,
+    })),
+    createdAt: newDM.rows[0].created_at,
+  };
+
+  // Broadcast to all members
+  allUserIds.forEach(uid => {
+    io.in(`user:${uid}`).emit('dm-created', dmGroup);
+  });
+
+  res.status(201).json(dmGroup);
 };
 
 export const getUserDMs = async (req: AuthRequest, res: Response) => {

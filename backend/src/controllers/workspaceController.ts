@@ -2,6 +2,8 @@ import { Response } from 'express';
 import { z } from 'zod';
 import pool from '../database/db';
 import { AuthRequest } from '../types';
+import { BadRequestError, ForbiddenError, NotFoundError } from '../errors';
+import logger from '../utils/logger';
 
 const createWorkspaceSchema = z.object({
   name: z.string().min(1).max(255),
@@ -16,15 +18,14 @@ const updateWorkspaceSchema = z.object({
 });
 
 export const createWorkspace = async (req: AuthRequest, res: Response) => {
-  try {
-    const { name, slug, description } = createWorkspaceSchema.parse(req.body);
+  const { name, slug, description } = createWorkspaceSchema.parse(req.body);
     const userId = req.userId!;
 
     // Check if slug already exists
     const existing = await pool.query('SELECT id FROM workspaces WHERE slug = $1', [slug]);
 
     if (existing.rows.length > 0) {
-      return res.status(400).json({ error: 'Workspace slug already exists' });
+      throw new BadRequestError('Workspace slug already exists');
     }
 
     // Create workspace
@@ -69,18 +70,10 @@ export const createWorkspace = async (req: AuthRequest, res: Response) => {
       createdAt: workspace.created_at,
       updatedAt: workspace.updated_at,
     });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: 'Invalid input', details: error.errors });
-    }
-    console.error('Create workspace error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
-  }
 };
 
 export const getWorkspaces = async (req: AuthRequest, res: Response) => {
-  try {
-    const userId = req.userId!;
+  const userId = req.userId!;
 
     const result = await pool.query(
       `SELECT w.id, w.name, w.slug, w.description, w.logo_url, w.owner_id,
@@ -105,15 +98,10 @@ export const getWorkspaces = async (req: AuthRequest, res: Response) => {
     }));
 
     res.json({ workspaces });
-  } catch (error) {
-    console.error('Get workspaces error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
-  }
 };
 
 export const getWorkspace = async (req: AuthRequest, res: Response) => {
-  try {
-    const { workspaceId } = req.params;
+  const { workspaceId } = req.params;
     const userId = req.userId!;
 
     // Check if user is member
@@ -123,7 +111,7 @@ export const getWorkspace = async (req: AuthRequest, res: Response) => {
     );
 
     if (memberCheck.rows.length === 0) {
-      return res.status(403).json({ error: 'Not a member of this workspace' });
+      throw new ForbiddenError('Not a member of this workspace');
     }
 
     const result = await pool.query(
@@ -133,7 +121,7 @@ export const getWorkspace = async (req: AuthRequest, res: Response) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Workspace not found' });
+      throw new NotFoundError('Workspace not found');
     }
 
     const workspace = result.rows[0];
@@ -149,17 +137,12 @@ export const getWorkspace = async (req: AuthRequest, res: Response) => {
       createdAt: workspace.created_at,
       updatedAt: workspace.updated_at,
     });
-  } catch (error) {
-    console.error('Get workspace error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
-  }
 };
 
 export const updateWorkspace = async (req: AuthRequest, res: Response) => {
-  try {
-    const { workspaceId } = req.params;
-    const userId = req.userId!;
-    const updates = updateWorkspaceSchema.parse(req.body);
+  const { workspaceId } = req.params;
+  const userId = req.userId!;
+  const updates = updateWorkspaceSchema.parse(req.body);
 
     // Check if user is owner or admin
     const memberCheck = await pool.query(
@@ -168,7 +151,7 @@ export const updateWorkspace = async (req: AuthRequest, res: Response) => {
     );
 
     if (memberCheck.rows.length === 0 || !['owner', 'admin'].includes(memberCheck.rows[0].role)) {
-      return res.status(403).json({ error: 'Insufficient permissions' });
+      throw new ForbiddenError('Insufficient permissions');
     }
 
     const updateFields: string[] = [];
@@ -191,7 +174,7 @@ export const updateWorkspace = async (req: AuthRequest, res: Response) => {
     }
 
     if (updateFields.length === 0) {
-      return res.status(400).json({ error: 'No fields to update' });
+      throw new BadRequestError('No fields to update');
     }
 
     values.push(workspaceId);
@@ -216,18 +199,10 @@ export const updateWorkspace = async (req: AuthRequest, res: Response) => {
       createdAt: workspace.created_at,
       updatedAt: workspace.updated_at,
     });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: 'Invalid input', details: error.errors });
-    }
-    console.error('Update workspace error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
-  }
 };
 
 export const deleteWorkspace = async (req: AuthRequest, res: Response) => {
-  try {
-    const { workspaceId } = req.params;
+  const { workspaceId } = req.params;
     const userId = req.userId!;
 
     // Check if user is owner
@@ -237,25 +212,20 @@ export const deleteWorkspace = async (req: AuthRequest, res: Response) => {
     );
 
     if (workspace.rows.length === 0) {
-      return res.status(404).json({ error: 'Workspace not found' });
+      throw new NotFoundError('Workspace not found');
     }
 
     if (workspace.rows[0].owner_id !== userId) {
-      return res.status(403).json({ error: 'Only the owner can delete the workspace' });
+      throw new ForbiddenError('Only the owner can delete the workspace');
     }
 
     await pool.query('DELETE FROM workspaces WHERE id = $1', [workspaceId]);
 
     res.json({ message: 'Workspace deleted successfully' });
-  } catch (error) {
-    console.error('Delete workspace error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
-  }
 };
 
 export const getWorkspaceMembers = async (req: AuthRequest, res: Response) => {
-  try {
-    const { workspaceId } = req.params;
+  const { workspaceId } = req.params;
     const { search } = req.query;
     const userId = req.userId!;
 
@@ -266,7 +236,7 @@ export const getWorkspaceMembers = async (req: AuthRequest, res: Response) => {
     );
 
     if (memberCheck.rows.length === 0) {
-      return res.status(403).json({ error: 'Not a member of this workspace' });
+      throw new ForbiddenError('Not a member of this workspace');
     }
 
     let query = `
@@ -298,8 +268,4 @@ export const getWorkspaceMembers = async (req: AuthRequest, res: Response) => {
     }));
 
     res.json({ members });
-  } catch (error) {
-    console.error('Get workspace members error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
-  }
 };

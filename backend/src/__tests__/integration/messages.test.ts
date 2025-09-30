@@ -51,10 +51,10 @@ describe('Message API Integration Tests', () => {
 
       // Create channel
       const channelResult = await pool.query(
-        `INSERT INTO channels (workspace_id, name, slug, is_private, created_by)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO channels (workspace_id, name, is_private, created_by)
+         VALUES ($1, $2, $3, $4)
          RETURNING id`,
-        [workspaceId, 'general', 'general', false, userId]
+        [workspaceId, 'general', false, userId]
       );
       channelId = channelResult.rows[0].id;
 

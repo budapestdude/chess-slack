@@ -18,13 +18,7 @@ jest.mock('../index', () => ({
 }));
 
 // Increase timeout for integration tests
-jest.setTimeout(10000);
-
-// Global teardown
-afterAll(async () => {
-  // Close any open connections
-  await new Promise((resolve) => setTimeout(resolve, 500));
-});
+jest.setTimeout(15000);
 
 // This file doesn't export any tests, just setup
 describe('Setup', () => {

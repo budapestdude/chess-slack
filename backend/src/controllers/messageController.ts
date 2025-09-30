@@ -7,6 +7,8 @@ import { AuthRequest } from '../types';
 import { io } from '../index';
 import notificationService from '../services/notificationService';
 import logger from '../utils/logger';
+import { BadRequestError, ForbiddenError, NotFoundError } from '../errors';
+import { validateFileType } from '../middleware/upload';
 
 const createMessageSchema = z.object({
   content: z.string().min(1).max(10000),
@@ -14,30 +16,29 @@ const createMessageSchema = z.object({
 });
 
 export const sendMessage = async (req: AuthRequest, res: Response) => {
-  try {
-    const { workspaceId, channelId } = req.params;
-    const { content, parentMessageId } = createMessageSchema.parse(req.body);
-    const userId = req.userId!;
+  const { workspaceId, channelId } = req.params;
+  const { content, parentMessageId } = createMessageSchema.parse(req.body);
+  const userId = req.userId!;
 
-    // Verify user is member of workspace
-    const workspaceMember = await pool.query(
-      'SELECT role FROM workspace_members WHERE workspace_id = $1 AND user_id = $2',
-      [workspaceId, userId]
-    );
+  // Verify user is member of workspace
+  const workspaceMember = await pool.query(
+    'SELECT role FROM workspace_members WHERE workspace_id = $1 AND user_id = $2',
+    [workspaceId, userId]
+  );
 
-    if (workspaceMember.rows.length === 0) {
-      return res.status(403).json({ error: 'Not a member of this workspace' });
-    }
+  if (workspaceMember.rows.length === 0) {
+    throw new ForbiddenError('Not a member of this workspace');
+  }
 
-    // Verify user is member of channel
-    const channelMember = await pool.query(
-      'SELECT id FROM channel_members WHERE channel_id = $1 AND user_id = $2',
-      [channelId, userId]
-    );
+  // Verify user is member of channel
+  const channelMember = await pool.query(
+    'SELECT id FROM channel_members WHERE channel_id = $1 AND user_id = $2',
+    [channelId, userId]
+  );
 
-    if (channelMember.rows.length === 0) {
-      return res.status(403).json({ error: 'Not a member of this channel' });
-    }
+  if (channelMember.rows.length === 0) {
+    throw new ForbiddenError('Not a member of this channel');
+  }
 
     // Create message
     const result = await pool.query(
@@ -112,42 +113,34 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
       );
     }
 
-    res.status(201).json(messageWithUser);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: 'Invalid input', details: error.errors });
-    }
-    logger.error('Send message error', { error: error instanceof Error ? error.message : 'Unknown error', stack: error instanceof Error ? error.stack : undefined });
-    return res.status(500).json({ error: 'Internal server error' });
-  }
+  res.status(201).json(messageWithUser);
 };
 
 export const getMessages = async (req: AuthRequest, res: Response) => {
-  try {
-    const { workspaceId, channelId } = req.params;
-    const userId = req.userId!;
-    const limit = parseInt(req.query.limit as string) || 50;
-    const before = req.query.before as string; // Cursor-based pagination
+  const { workspaceId, channelId } = req.params;
+  const userId = req.userId!;
+  const limit = parseInt(req.query.limit as string) || 50;
+  const before = req.query.before as string; // Cursor-based pagination
 
-    // Verify user is member of workspace
-    const workspaceMember = await pool.query(
-      'SELECT role FROM workspace_members WHERE workspace_id = $1 AND user_id = $2',
-      [workspaceId, userId]
-    );
+  // Verify user is member of workspace
+  const workspaceMember = await pool.query(
+    'SELECT role FROM workspace_members WHERE workspace_id = $1 AND user_id = $2',
+    [workspaceId, userId]
+  );
 
-    if (workspaceMember.rows.length === 0) {
-      return res.status(403).json({ error: 'Not a member of this workspace' });
-    }
+  if (workspaceMember.rows.length === 0) {
+    throw new ForbiddenError('Not a member of this workspace');
+  }
 
-    // Verify user is member of channel
-    const channelMember = await pool.query(
-      'SELECT id FROM channel_members WHERE channel_id = $1 AND user_id = $2',
-      [channelId, userId]
-    );
+  // Verify user is member of channel
+  const channelMember = await pool.query(
+    'SELECT id FROM channel_members WHERE channel_id = $1 AND user_id = $2',
+    [channelId, userId]
+  );
 
-    if (channelMember.rows.length === 0) {
-      return res.status(403).json({ error: 'Not a member of this channel' });
-    }
+  if (channelMember.rows.length === 0) {
+    throw new ForbiddenError('Not a member of this channel');
+  }
 
     // Fetch messages with user details
     let query = `
@@ -198,35 +191,30 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
     // Reverse to show oldest first
     messages.reverse();
 
-    res.json({
-      messages,
-      hasMore: result.rows.length === limit,
-    });
-  } catch (error) {
-    logger.error('Get messages error', { error: error instanceof Error ? error.message : 'Unknown error', stack: error instanceof Error ? error.stack : undefined });
-    return res.status(500).json({ error: 'Internal server error' });
-  }
+  res.json({
+    messages,
+    hasMore: result.rows.length === limit,
+  });
 };
 
 export const editMessage = async (req: AuthRequest, res: Response) => {
-  try {
-    const { messageId } = req.params;
-    const { content } = z.object({ content: z.string().min(1).max(10000) }).parse(req.body);
-    const userId = req.userId!;
+  const { messageId } = req.params;
+  const { content } = z.object({ content: z.string().min(1).max(10000) }).parse(req.body);
+  const userId = req.userId!;
 
-    // Verify message ownership
-    const message = await pool.query(
-      'SELECT id, channel_id, user_id FROM messages WHERE id = $1',
-      [messageId]
-    );
+  // Verify message ownership
+  const message = await pool.query(
+    'SELECT id, channel_id, user_id FROM messages WHERE id = $1',
+    [messageId]
+  );
 
-    if (message.rows.length === 0) {
-      return res.status(404).json({ error: 'Message not found' });
-    }
+  if (message.rows.length === 0) {
+    throw new NotFoundError('Message not found');
+  }
 
-    if (message.rows[0].user_id !== userId) {
-      return res.status(403).json({ error: 'Cannot edit someone else\'s message' });
-    }
+  if (message.rows[0].user_id !== userId) {
+    throw new ForbiddenError('Cannot edit someone else\'s message');
+  }
 
     // Update message
     const result = await pool.query(
@@ -243,40 +231,32 @@ export const editMessage = async (req: AuthRequest, res: Response) => {
     // Broadcast update via WebSocket (including sender)
     io.in(`channel:${message.rows[0].channel_id}`).emit('message-updated', updatedMessage);
 
-    res.json(updatedMessage);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: 'Invalid input', details: error.errors });
-    }
-    logger.error('Edit message error', { error: error instanceof Error ? error.message : 'Unknown error', stack: error instanceof Error ? error.stack : undefined });
-    return res.status(500).json({ error: 'Internal server error' });
-  }
+  res.json(updatedMessage);
 };
 
 export const deleteMessage = async (req: AuthRequest, res: Response) => {
-  try {
-    const { messageId } = req.params;
-    const userId = req.userId!;
+  const { messageId } = req.params;
+  const userId = req.userId!;
 
-    // Verify message ownership or admin role
-    const message = await pool.query(
-      `SELECT m.id, m.channel_id, m.user_id, cm.role
-       FROM messages m
-       JOIN channel_members cm ON m.channel_id = cm.channel_id AND cm.user_id = $2
-       WHERE m.id = $1`,
-      [messageId, userId]
-    );
+  // Verify message ownership or admin role
+  const message = await pool.query(
+    `SELECT m.id, m.channel_id, m.user_id, cm.role
+     FROM messages m
+     JOIN channel_members cm ON m.channel_id = cm.channel_id AND cm.user_id = $2
+     WHERE m.id = $1`,
+    [messageId, userId]
+  );
 
-    if (message.rows.length === 0) {
-      return res.status(404).json({ error: 'Message not found' });
-    }
+  if (message.rows.length === 0) {
+    throw new NotFoundError('Message not found');
+  }
 
-    const isOwner = message.rows[0].user_id === userId;
-    const isAdmin = message.rows[0].role === 'admin';
+  const isOwner = message.rows[0].user_id === userId;
+  const isAdmin = message.rows[0].role === 'admin';
 
-    if (!isOwner && !isAdmin) {
-      return res.status(403).json({ error: 'Cannot delete this message' });
-    }
+  if (!isOwner && !isAdmin) {
+    throw new ForbiddenError('Cannot delete this message');
+  }
 
     // Soft delete
     await pool.query(
@@ -290,28 +270,23 @@ export const deleteMessage = async (req: AuthRequest, res: Response) => {
       channelId: message.rows[0].channel_id,
     });
 
-    res.json({ message: 'Message deleted successfully' });
-  } catch (error) {
-    logger.error('Delete message error', { error: error instanceof Error ? error.message : 'Unknown error', stack: error instanceof Error ? error.stack : undefined });
-    return res.status(500).json({ error: 'Internal server error' });
-  }
+  res.json({ message: 'Message deleted successfully' });
 };
 
 export const addReaction = async (req: AuthRequest, res: Response) => {
-  try {
-    const { messageId } = req.params;
-    const { emoji } = z.object({ emoji: z.string() }).parse(req.body);
-    const userId = req.userId!;
+  const { messageId } = req.params;
+  const { emoji } = z.object({ emoji: z.string() }).parse(req.body);
+  const userId = req.userId!;
 
-    // Check if reaction already exists
-    const existing = await pool.query(
-      'SELECT id FROM message_reactions WHERE message_id = $1 AND user_id = $2 AND emoji = $3',
-      [messageId, userId, emoji]
-    );
+  // Check if reaction already exists
+  const existing = await pool.query(
+    'SELECT id FROM message_reactions WHERE message_id = $1 AND user_id = $2 AND emoji = $3',
+    [messageId, userId, emoji]
+  );
 
-    if (existing.rows.length > 0) {
-      return res.status(400).json({ error: 'Reaction already exists' });
-    }
+  if (existing.rows.length > 0) {
+    throw new BadRequestError('Reaction already exists');
+  }
 
     // Add reaction
     const result = await pool.query(
@@ -336,72 +311,59 @@ export const addReaction = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    res.status(201).json(reaction);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: 'Invalid input', details: error.errors });
-    }
-    logger.error('Add reaction error', { error: error instanceof Error ? error.message : 'Unknown error', stack: error instanceof Error ? error.stack : undefined });
-    return res.status(500).json({ error: 'Internal server error' });
-  }
+  res.status(201).json(reaction);
 };
 
 export const removeReaction = async (req: AuthRequest, res: Response) => {
-  try {
-    const { messageId } = req.params;
-    const { emoji } = req.query;
-    const userId = req.userId!;
+  const { messageId } = req.params;
+  const { emoji } = req.query;
+  const userId = req.userId!;
 
-    await pool.query(
-      'DELETE FROM message_reactions WHERE message_id = $1 AND user_id = $2 AND emoji = $3',
-      [messageId, userId, emoji]
-    );
+  await pool.query(
+    'DELETE FROM message_reactions WHERE message_id = $1 AND user_id = $2 AND emoji = $3',
+    [messageId, userId, emoji]
+  );
 
-    // Get channel_id for WebSocket broadcast
-    const message = await pool.query(
-      'SELECT channel_id FROM messages WHERE id = $1',
-      [messageId]
-    );
+  // Get channel_id for WebSocket broadcast
+  const message = await pool.query(
+    'SELECT channel_id FROM messages WHERE id = $1',
+    [messageId]
+  );
 
-    if (message.rows.length > 0) {
-      io.in(`channel:${message.rows[0].channel_id}`).emit('reaction-removed', {
-        messageId,
-        userId,
-        emoji,
-      });
-    }
-
-    res.json({ message: 'Reaction removed successfully' });
-  } catch (error) {
-    logger.error('Remove reaction error', { error: error instanceof Error ? error.message : 'Unknown error', stack: error instanceof Error ? error.stack : undefined });
-    return res.status(500).json({ error: 'Internal server error' });
+  if (message.rows.length > 0) {
+    io.in(`channel:${message.rows[0].channel_id}`).emit('reaction-removed', {
+      messageId,
+      userId,
+      emoji,
+    });
   }
+
+  res.json({ message: 'Reaction removed successfully' });
 };
 
 export const getThreadReplies = async (req: AuthRequest, res: Response) => {
-  try {
-    const { workspaceId, channelId, messageId } = req.params;
-    const userId = req.userId!;
+  const { workspaceId, channelId, messageId } = req.params;
+  const userId = req.userId!;
 
-    // Verify user is member of workspace
-    const workspaceMember = await pool.query(
-      'SELECT role FROM workspace_members WHERE workspace_id = $1 AND user_id = $2',
-      [workspaceId, userId]
-    );
+  // Verify user is member of workspace
+  const workspaceMember = await pool.query(
+    'SELECT role FROM workspace_members WHERE workspace_id = $1 AND user_id = $2',
+    [workspaceId, userId]
+  );
 
-    if (workspaceMember.rows.length === 0) {
-      return res.status(403).json({ error: 'Not a member of this workspace' });
-    }
+  if (workspaceMember.rows.length === 0) {
+    throw new ForbiddenError('Not a member of this workspace');
+  }
 
-    // Verify user is member of channel
-    const channelMember = await pool.query(
-      'SELECT id FROM channel_members WHERE channel_id = $1 AND user_id = $2',
-      [channelId, userId]
-    );
+  // Verify user is member of channel
+  const channelMember = await pool.query(
+    'SELECT id FROM channel_members WHERE channel_id = $1 AND user_id = $2',
+    [channelId, userId]
+  );
 
-    if (channelMember.rows.length === 0) {
-      return res.status(403).json({ error: 'Not a member of this channel' });
-    }
+  if (channelMember.rows.length === 0) {
+    throw new ForbiddenError('Not a member of this channel');
+  }
 
     // Fetch parent message with user details
     const parentResult = await pool.query(
@@ -415,9 +377,9 @@ export const getThreadReplies = async (req: AuthRequest, res: Response) => {
       [messageId]
     );
 
-    if (parentResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Message not found' });
-    }
+  if (parentResult.rows.length === 0) {
+    throw new NotFoundError('Message not found');
+  }
 
     const parentRow = parentResult.rows[0];
     const parentMessage = {
@@ -479,45 +441,40 @@ export const getThreadReplies = async (req: AuthRequest, res: Response) => {
       },
     }));
 
-    res.json({
-      parentMessage,
-      replies,
-    });
-  } catch (error) {
-    logger.error('Get thread replies error', { error: error instanceof Error ? error.message : 'Unknown error', stack: error instanceof Error ? error.stack : undefined });
-    return res.status(500).json({ error: 'Internal server error' });
-  }
+  res.json({
+    parentMessage,
+    replies,
+  });
 };
 
 export const uploadMessageWithAttachments = async (req: AuthRequest, res: Response) => {
-  try {
-    const { workspaceId, channelId } = req.params;
-    const { content, parentMessageId } = req.body;
-    const userId = req.userId!;
-    const files = req.files as Express.Multer.File[];
+  const { workspaceId, channelId } = req.params;
+  const { content, parentMessageId } = req.body;
+  const userId = req.userId!;
+  const files = req.files as Express.Multer.File[];
 
-    if (!files || files.length === 0) {
-      return res.status(400).json({ error: 'No files uploaded' });
-    }
+  if (!files || files.length === 0) {
+    throw new BadRequestError('No files uploaded');
+  }
 
-    // Verify user is member of workspace and channel
-    const workspaceMember = await pool.query(
-      'SELECT role FROM workspace_members WHERE workspace_id = $1 AND user_id = $2',
-      [workspaceId, userId]
-    );
+  // Verify user is member of workspace and channel
+  const workspaceMember = await pool.query(
+    'SELECT role FROM workspace_members WHERE workspace_id = $1 AND user_id = $2',
+    [workspaceId, userId]
+  );
 
-    if (workspaceMember.rows.length === 0) {
-      return res.status(403).json({ error: 'Not a member of this workspace' });
-    }
+  if (workspaceMember.rows.length === 0) {
+    throw new ForbiddenError('Not a member of this workspace');
+  }
 
-    const channelMember = await pool.query(
-      'SELECT id FROM channel_members WHERE channel_id = $1 AND user_id = $2',
-      [channelId, userId]
-    );
+  const channelMember = await pool.query(
+    'SELECT id FROM channel_members WHERE channel_id = $1 AND user_id = $2',
+    [channelId, userId]
+  );
 
-    if (channelMember.rows.length === 0) {
-      return res.status(403).json({ error: 'Not a member of this channel' });
-    }
+  if (channelMember.rows.length === 0) {
+    throw new ForbiddenError('Not a member of this channel');
+  }
 
     // Create message
     const messageResult = await pool.query(
@@ -534,9 +491,28 @@ export const uploadMessageWithAttachments = async (req: AuthRequest, res: Respon
     const uploadDir = path.join('uploads', workspaceId, channelId, message.id);
     await fs.mkdir(uploadDir, { recursive: true });
 
-    // Move files and create attachment records
+    // Validate and move files, create attachment records
     const attachments = [];
     for (const file of files) {
+      // SECURITY: Validate file type using magic numbers
+      const isValidFileType = await validateFileType(file.path, file.mimetype);
+
+      if (!isValidFileType) {
+        // Clean up uploaded files if validation fails
+        await fs.unlink(file.path).catch(() => {});
+        for (const att of attachments) {
+          await fs.unlink(path.join(uploadDir, att.filename)).catch(() => {});
+        }
+
+        logger.warn('File upload rejected - magic number validation failed', {
+          userId,
+          filename: file.originalname,
+          declaredMimeType: file.mimetype
+        });
+
+        throw new BadRequestError(`File type validation failed for ${file.originalname}. The file content does not match the declared type.`);
+      }
+
       const newPath = path.join(uploadDir, file.filename);
       await fs.rename(file.path, newPath);
 
@@ -597,63 +573,85 @@ export const uploadMessageWithAttachments = async (req: AuthRequest, res: Respon
     // Broadcast message via WebSocket
     io.in(`channel:${channelId}`).emit('new-message', messageWithAttachments);
 
-    res.status(201).json(messageWithAttachments);
-  } catch (error) {
-    logger.error('Upload message with attachments error', { error: error instanceof Error ? error.message : 'Unknown error', stack: error instanceof Error ? error.stack : undefined });
-    return res.status(500).json({ error: 'Internal server error' });
-  }
+  res.status(201).json(messageWithAttachments);
 };
 
 export const downloadAttachment = async (req: AuthRequest, res: Response) => {
-  try {
-    const { workspaceId, channelId, messageId, attachmentId } = req.params;
-    const userId = req.userId!;
+  const { workspaceId, channelId, messageId, attachmentId } = req.params;
+  const userId = req.userId!;
 
-    // Verify user is member of workspace
-    const workspaceMember = await pool.query(
-      'SELECT role FROM workspace_members WHERE workspace_id = $1 AND user_id = $2',
-      [workspaceId, userId]
-    );
+  // Verify user is member of workspace
+  const workspaceMember = await pool.query(
+    'SELECT role FROM workspace_members WHERE workspace_id = $1 AND user_id = $2',
+    [workspaceId, userId]
+  );
 
-    if (workspaceMember.rows.length === 0) {
-      return res.status(403).json({ error: 'Not a member of this workspace' });
-    }
-
-    // Verify user is member of channel
-    const channelMember = await pool.query(
-      'SELECT id FROM channel_members WHERE channel_id = $1 AND user_id = $2',
-      [channelId, userId]
-    );
-
-    if (channelMember.rows.length === 0) {
-      return res.status(403).json({ error: 'Not a member of this channel' });
-    }
-
-    // Get attachment details
-    const attachmentResult = await pool.query(
-      'SELECT id, file_path, original_filename, mime_type FROM attachments WHERE id = $1 AND message_id = $2',
-      [attachmentId, messageId]
-    );
-
-    if (attachmentResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Attachment not found' });
-    }
-
-    const attachment = attachmentResult.rows[0];
-
-    // Check if file exists
-    try {
-      await fs.access(attachment.file_path);
-    } catch {
-      return res.status(404).json({ error: 'File not found on server' });
-    }
-
-    // Serve file
-    res.setHeader('Content-Type', attachment.mime_type);
-    res.setHeader('Content-Disposition', `attachment; filename="${attachment.original_filename}"`);
-    res.sendFile(path.resolve(attachment.file_path));
-  } catch (error) {
-    logger.error('Download attachment error', { error: error instanceof Error ? error.message : 'Unknown error', stack: error instanceof Error ? error.stack : undefined });
-    return res.status(500).json({ error: 'Internal server error' });
+  if (workspaceMember.rows.length === 0) {
+    throw new ForbiddenError('Not a member of this workspace');
   }
+
+  // Verify user is member of channel
+  const channelMember = await pool.query(
+    'SELECT id FROM channel_members WHERE channel_id = $1 AND user_id = $2',
+    [channelId, userId]
+  );
+
+  if (channelMember.rows.length === 0) {
+    throw new ForbiddenError('Not a member of this channel');
+  }
+
+  // Get attachment details
+  const attachmentResult = await pool.query(
+    'SELECT id, file_path, original_filename, mime_type FROM attachments WHERE id = $1 AND message_id = $2',
+    [attachmentId, messageId]
+  );
+
+  if (attachmentResult.rows.length === 0) {
+    throw new NotFoundError('Attachment not found');
+  }
+
+  const attachment = attachmentResult.rows[0];
+
+  // SECURITY: Prevent path traversal attacks
+  const resolvedPath = path.resolve(attachment.file_path);
+  const uploadsDir = path.resolve('uploads');
+
+  // Ensure the file is within the uploads directory
+  if (!resolvedPath.startsWith(uploadsDir)) {
+    logger.error('Path traversal attempt detected', {
+      userId,
+      attachmentId,
+      filePath: attachment.file_path,
+      resolvedPath
+    });
+    throw new ForbiddenError('Access denied');
+  }
+
+  // Verify the path matches expected structure: uploads/workspaceId/channelId/messageId/filename
+  const expectedPathPattern = path.join(uploadsDir, workspaceId, channelId, messageId);
+  if (!resolvedPath.startsWith(expectedPathPattern)) {
+    logger.error('File path does not match expected structure', {
+      userId,
+      attachmentId,
+      resolvedPath,
+      expectedPattern: expectedPathPattern
+    });
+    throw new ForbiddenError('Access denied');
+  }
+
+  // Check if file exists
+  try {
+    await fs.access(resolvedPath);
+  } catch {
+    throw new NotFoundError('File not found on server');
+  }
+
+  // Sanitize filename for Content-Disposition header to prevent header injection
+  const sanitizedFilename = attachment.original_filename.replace(/[^\w\s.-]/g, '_');
+
+  // Serve file
+  res.setHeader('Content-Type', attachment.mime_type);
+  res.setHeader('Content-Disposition', `attachment; filename="${sanitizedFilename}"`);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.sendFile(resolvedPath);
 };

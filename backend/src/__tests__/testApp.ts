@@ -3,6 +3,7 @@ import cors from 'cors';
 import authRoutes from '../routes/authRoutes';
 import messageRoutes from '../routes/messageRoutes';
 import channelRoutes from '../routes/channelRoutes';
+import { errorHandler } from '../middleware/errorHandler';
 
 // Create a test Express app without socket.io and database migrations
 export const createTestApp = () => {
@@ -21,6 +22,9 @@ export const createTestApp = () => {
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok' });
   });
+
+  // Error handler (must be last)
+  app.use(errorHandler);
 
   return app;
 };

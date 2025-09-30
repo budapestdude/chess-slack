@@ -125,10 +125,10 @@ describe('Channel API Integration Tests', () => {
       // Create some test channels
       for (let i = 0; i < 3; i++) {
         const channelResult = await pool.query(
-          `INSERT INTO channels (workspace_id, name, slug, is_private, created_by)
-           VALUES ($1, $2, $3, $4, $5)
+          `INSERT INTO channels (workspace_id, name, is_private, created_by)
+           VALUES ($1, $2, $3, $4)
            RETURNING id`,
-          [workspaceId, `channel-${i}`, `channel-${i}`, false, userId]
+          [workspaceId, `channel-${i}`, false, userId]
         );
 
         // Add user to channel
@@ -163,10 +163,10 @@ describe('Channel API Integration Tests', () => {
 
     beforeEach(async () => {
       const result = await pool.query(
-        `INSERT INTO channels (workspace_id, name, slug, is_private, created_by)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO channels (workspace_id, name, is_private, created_by)
+         VALUES ($1, $2, $3, $4)
          RETURNING id`,
-        [workspaceId, 'join-test', 'join-test', false, userId]
+        [workspaceId, 'join-test', false, userId]
       );
       channelId = result.rows[0].id;
     });
@@ -192,10 +192,10 @@ describe('Channel API Integration Tests', () => {
 
     beforeEach(async () => {
       const result = await pool.query(
-        `INSERT INTO channels (workspace_id, name, slug, is_private, created_by)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO channels (workspace_id, name, is_private, created_by)
+         VALUES ($1, $2, $3, $4)
          RETURNING id`,
-        [workspaceId, 'leave-test', 'leave-test', false, userId]
+        [workspaceId, 'leave-test', false, userId]
       );
       channelId = result.rows[0].id;
 

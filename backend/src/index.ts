@@ -20,6 +20,8 @@ import { verifyToken } from './utils/jwt';
 import pool from './database/db';
 import { apiLimiter } from './middleware/rateLimiter';
 import { sanitizeInput } from './middleware/sanitize';
+import { errorHandler } from './middleware/errorHandler';
+import { asyncHandler } from './utils/asyncHandler';
 
 dotenv.config();
 
@@ -151,32 +153,83 @@ io.on('connection', async (socket) => {
     });
   }
 
-  socket.on('join-workspace', (workspaceId: string) => {
-    socket.join(`workspace:${workspaceId}`);
-    logger.debug('Socket joined workspace', { socketId: socket.id, workspaceId });
+  socket.on('join-workspace', async (workspaceId: string) => {
+    // Validate input
+    if (!workspaceId || typeof workspaceId !== 'string' || !/^[0-9a-f-]{36}$/i.test(workspaceId)) {
+      logger.warn('Invalid workspace ID in join-workspace', { socketId: socket.id, workspaceId });
+      return;
+    }
+
+    // Verify user is member of workspace
+    try {
+      const memberCheck = await pool.query(
+        'SELECT 1 FROM workspace_members WHERE workspace_id = $1 AND user_id = $2',
+        [workspaceId, userId]
+      );
+
+      if (memberCheck.rows.length === 0) {
+        logger.warn('Unauthorized workspace join attempt', { socketId: socket.id, userId, workspaceId });
+        return;
+      }
+
+      socket.join(`workspace:${workspaceId}`);
+      logger.debug('Socket joined workspace', { socketId: socket.id, workspaceId });
+    } catch (error) {
+      logger.error('Error in join-workspace', { error, socketId: socket.id });
+    }
   });
 
   // Join user-specific room for personal notifications
   socket.join(`user:${userId}`);
   logger.debug('Socket joined user room', { socketId: socket.id, userId });
 
-  socket.on('join-channel', (channelId: string, callback?: (success: boolean) => void) => {
-    socket.join(`channel:${channelId}`);
-    logger.debug('Socket joined channel', { socketId: socket.id, channelId });
+  socket.on('join-channel', async (channelId: string, callback?: (success: boolean) => void) => {
+    // Validate input
+    if (!channelId || typeof channelId !== 'string' || !/^[0-9a-f-]{36}$/i.test(channelId)) {
+      logger.warn('Invalid channel ID in join-channel', { socketId: socket.id, channelId });
+      if (callback) callback(false);
+      return;
+    }
 
-    // Notify others that user joined
-    socket.to(`channel:${channelId}`).emit('user-joined-channel', {
-      user: socket.data.user,
-      channelId,
-    });
+    // Verify user is member of channel
+    try {
+      const memberCheck = await pool.query(
+        'SELECT 1 FROM channel_members WHERE channel_id = $1 AND user_id = $2',
+        [channelId, userId]
+      );
 
-    // Acknowledge join completion to sender
-    if (callback) {
-      callback(true);
+      if (memberCheck.rows.length === 0) {
+        logger.warn('Unauthorized channel join attempt', { socketId: socket.id, userId, channelId });
+        if (callback) callback(false);
+        return;
+      }
+
+      socket.join(`channel:${channelId}`);
+      logger.debug('Socket joined channel', { socketId: socket.id, channelId });
+
+      // Notify others that user joined
+      socket.to(`channel:${channelId}`).emit('user-joined-channel', {
+        user: socket.data.user,
+        channelId,
+      });
+
+      // Acknowledge join completion to sender
+      if (callback) {
+        callback(true);
+      }
+    } catch (error) {
+      logger.error('Error in join-channel', { error, socketId: socket.id });
+      if (callback) callback(false);
     }
   });
 
   socket.on('leave-channel', (channelId: string) => {
+    // Validate input
+    if (!channelId || typeof channelId !== 'string' || !/^[0-9a-f-]{36}$/i.test(channelId)) {
+      logger.warn('Invalid channel ID in leave-channel', { socketId: socket.id, channelId });
+      return;
+    }
+
     socket.leave(`channel:${channelId}`);
     logger.debug('Socket left channel', { socketId: socket.id, channelId });
 
@@ -187,22 +240,57 @@ io.on('connection', async (socket) => {
     });
   });
 
-  socket.on('join-dm', (dmGroupId: string, callback?: (success: boolean) => void) => {
-    socket.join(`dm:${dmGroupId}`);
-    logger.debug('Socket joined DM', { socketId: socket.id, dmGroupId });
+  socket.on('join-dm', async (dmGroupId: string, callback?: (success: boolean) => void) => {
+    // Validate input
+    if (!dmGroupId || typeof dmGroupId !== 'string' || !/^[0-9a-f-]{36}$/i.test(dmGroupId)) {
+      logger.warn('Invalid DM group ID in join-dm', { socketId: socket.id, dmGroupId });
+      if (callback) callback(false);
+      return;
+    }
 
-    // Acknowledge join completion to sender
-    if (callback) {
-      callback(true);
+    // Verify user is member of DM group
+    try {
+      const memberCheck = await pool.query(
+        'SELECT 1 FROM dm_group_members WHERE dm_group_id = $1 AND user_id = $2',
+        [dmGroupId, userId]
+      );
+
+      if (memberCheck.rows.length === 0) {
+        logger.warn('Unauthorized DM join attempt', { socketId: socket.id, userId, dmGroupId });
+        if (callback) callback(false);
+        return;
+      }
+
+      socket.join(`dm:${dmGroupId}`);
+      logger.debug('Socket joined DM', { socketId: socket.id, dmGroupId });
+
+      // Acknowledge join completion to sender
+      if (callback) {
+        callback(true);
+      }
+    } catch (error) {
+      logger.error('Error in join-dm', { error, socketId: socket.id });
+      if (callback) callback(false);
     }
   });
 
   socket.on('leave-dm', (dmGroupId: string) => {
+    // Validate input
+    if (!dmGroupId || typeof dmGroupId !== 'string' || !/^[0-9a-f-]{36}$/i.test(dmGroupId)) {
+      logger.warn('Invalid DM group ID in leave-dm', { socketId: socket.id, dmGroupId });
+      return;
+    }
+
     socket.leave(`dm:${dmGroupId}`);
     logger.debug('Socket left DM', { socketId: socket.id, dmGroupId });
   });
 
   socket.on('typing', ({ channelId }) => {
+    // Validate input
+    if (!channelId || typeof channelId !== 'string' || !/^[0-9a-f-]{36}$/i.test(channelId)) {
+      return;
+    }
+
     socket.to(`channel:${channelId}`).emit('user-typing', {
       user: socket.data.user,
       channelId,
@@ -210,6 +298,11 @@ io.on('connection', async (socket) => {
   });
 
   socket.on('stop-typing', ({ channelId }) => {
+    // Validate input
+    if (!channelId || typeof channelId !== 'string' || !/^[0-9a-f-]{36}$/i.test(channelId)) {
+      return;
+    }
+
     socket.to(`channel:${channelId}`).emit('user-stop-typing', {
       user: socket.data.user,
       channelId,
@@ -289,18 +382,13 @@ io.on('connection', async (socket) => {
   });
 });
 
-// Error handling
-app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  logger.error('Express error handler', { error: err.message, stack: err.stack, status: err.status });
-  res.status(err.status || 500).json({
-    error: err.message || 'Internal server error',
-  });
-});
-
-// 404 handler
+// 404 handler (must come before error handler)
 app.use((_req, res) => {
   return res.status(404).json({ error: 'Route not found' });
 });
+
+// Global error handler (must be last)
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 3001;
 
