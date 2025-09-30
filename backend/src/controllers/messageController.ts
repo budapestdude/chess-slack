@@ -1,0 +1,658 @@
+import { Response } from 'express';
+import { z } from 'zod';
+import path from 'path';
+import fs from 'fs/promises';
+import pool from '../database/db';
+import { AuthRequest } from '../types';
+import { io } from '../index';
+import notificationService from '../services/notificationService';
+
+const createMessageSchema = z.object({
+  content: z.string().min(1).max(10000),
+  parentMessageId: z.string().uuid().optional(),
+});
+
+export const sendMessage = async (req: AuthRequest, res: Response) => {
+  try {
+    const { workspaceId, channelId } = req.params;
+    const { content, parentMessageId } = createMessageSchema.parse(req.body);
+    const userId = req.userId!;
+
+    // Verify user is member of workspace
+    const workspaceMember = await pool.query(
+      'SELECT role FROM workspace_members WHERE workspace_id = $1 AND user_id = $2',
+      [workspaceId, userId]
+    );
+
+    if (workspaceMember.rows.length === 0) {
+      return res.status(403).json({ error: 'Not a member of this workspace' });
+    }
+
+    // Verify user is member of channel
+    const channelMember = await pool.query(
+      'SELECT id FROM channel_members WHERE channel_id = $1 AND user_id = $2',
+      [channelId, userId]
+    );
+
+    if (channelMember.rows.length === 0) {
+      return res.status(403).json({ error: 'Not a member of this channel' });
+    }
+
+    // Create message
+    const result = await pool.query(
+      `INSERT INTO messages (workspace_id, channel_id, user_id, content, parent_message_id)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, workspace_id, channel_id, user_id, content, message_type, metadata,
+                 parent_message_id, is_edited, is_deleted, reply_count, last_reply_at, created_at, updated_at`,
+      [workspaceId, channelId, userId, content, parentMessageId || null]
+    );
+
+    const message = result.rows[0];
+
+    // If this is a thread reply, update parent message reply count
+    if (parentMessageId) {
+      await pool.query(
+        `UPDATE messages
+         SET reply_count = reply_count + 1, last_reply_at = NOW()
+         WHERE id = $1`,
+        [parentMessageId]
+      );
+
+      // Emit thread-reply event for real-time updates
+      io.in(`channel:${channelId}`).emit('thread-reply', {
+        parentMessageId,
+        replyCount: message.reply_count + 1,
+        lastReplyAt: new Date(),
+      });
+    }
+
+    // Fetch user details
+    const userResult = await pool.query(
+      'SELECT id, username, display_name, avatar_url FROM users WHERE id = $1',
+      [userId]
+    );
+
+    const messageWithUser = {
+      id: message.id,
+      workspaceId: message.workspace_id,
+      channelId: message.channel_id,
+      dmGroupId: message.dm_group_id,
+      userId: message.user_id,
+      content: message.content,
+      messageType: message.message_type,
+      metadata: message.metadata,
+      parentMessageId: message.parent_message_id,
+      isEdited: message.is_edited,
+      isDeleted: message.is_deleted,
+      replyCount: message.reply_count || 0,
+      lastReplyAt: message.last_reply_at,
+      createdAt: message.created_at,
+      updatedAt: message.updated_at,
+      user: userResult.rows[0],
+    };
+
+    // Broadcast message to channel via WebSocket (including sender)
+    const roomName = `channel:${channelId}`;
+    const socketsInRoom = await io.in(roomName).fetchSockets();
+    console.log(`Broadcasting new-message to room ${roomName}, ${socketsInRoom.length} sockets connected`);
+    io.in(roomName).emit('new-message', messageWithUser);
+
+    // Create notifications for mentions
+    const mentionedUsernames = notificationService.extractMentionedUsers(content);
+    if (mentionedUsernames.length > 0) {
+      await notificationService.notifyMentions(
+        message.id,
+        content,
+        mentionedUsernames,
+        workspaceId,
+        channelId,
+        null,
+        userId
+      );
+    }
+
+    res.status(201).json(messageWithUser);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.errors });
+    }
+    console.error('Send message error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const getMessages = async (req: AuthRequest, res: Response) => {
+  try {
+    const { workspaceId, channelId } = req.params;
+    const userId = req.userId!;
+    const limit = parseInt(req.query.limit as string) || 50;
+    const before = req.query.before as string; // Cursor-based pagination
+
+    // Verify user is member of workspace
+    const workspaceMember = await pool.query(
+      'SELECT role FROM workspace_members WHERE workspace_id = $1 AND user_id = $2',
+      [workspaceId, userId]
+    );
+
+    if (workspaceMember.rows.length === 0) {
+      return res.status(403).json({ error: 'Not a member of this workspace' });
+    }
+
+    // Verify user is member of channel
+    const channelMember = await pool.query(
+      'SELECT id FROM channel_members WHERE channel_id = $1 AND user_id = $2',
+      [channelId, userId]
+    );
+
+    if (channelMember.rows.length === 0) {
+      return res.status(403).json({ error: 'Not a member of this channel' });
+    }
+
+    // Fetch messages with user details
+    let query = `
+      SELECT m.id, m.workspace_id, m.channel_id, m.user_id, m.content, m.message_type,
+             m.metadata, m.parent_message_id, m.is_edited, m.is_deleted, m.created_at, m.updated_at,
+             u.id as user_id, u.username, u.display_name, u.avatar_url,
+             (SELECT COUNT(*) FROM messages WHERE parent_message_id = m.id) as reply_count
+      FROM messages m
+      JOIN users u ON m.user_id = u.id
+      WHERE m.channel_id = $1 AND m.parent_message_id IS NULL AND m.is_deleted = false
+    `;
+
+    const params: any[] = [channelId];
+
+    if (before) {
+      query += ` AND m.created_at < (SELECT created_at FROM messages WHERE id = $2)`;
+      params.push(before);
+    }
+
+    query += ` ORDER BY m.created_at DESC LIMIT $${params.length + 1}`;
+    params.push(limit);
+
+    const result = await pool.query(query, params);
+
+    // Transform results to include user object
+    const messages = result.rows.map((row) => ({
+      id: row.id,
+      workspaceId: row.workspace_id,
+      channelId: row.channel_id,
+      userId: row.user_id,
+      content: row.content,
+      messageType: row.message_type,
+      metadata: row.metadata,
+      parentMessageId: row.parent_message_id,
+      isEdited: row.is_edited,
+      isDeleted: row.is_deleted,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      replyCount: parseInt(row.reply_count),
+      user: {
+        id: row.user_id,
+        username: row.username,
+        displayName: row.display_name,
+        avatarUrl: row.avatar_url,
+      },
+    }));
+
+    // Reverse to show oldest first
+    messages.reverse();
+
+    res.json({
+      messages,
+      hasMore: result.rows.length === limit,
+    });
+  } catch (error) {
+    console.error('Get messages error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const editMessage = async (req: AuthRequest, res: Response) => {
+  try {
+    const { messageId } = req.params;
+    const { content } = z.object({ content: z.string().min(1).max(10000) }).parse(req.body);
+    const userId = req.userId!;
+
+    // Verify message ownership
+    const message = await pool.query(
+      'SELECT id, channel_id, user_id FROM messages WHERE id = $1',
+      [messageId]
+    );
+
+    if (message.rows.length === 0) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    if (message.rows[0].user_id !== userId) {
+      return res.status(403).json({ error: 'Cannot edit someone else\'s message' });
+    }
+
+    // Update message
+    const result = await pool.query(
+      `UPDATE messages
+       SET content = $1, is_edited = true, updated_at = NOW()
+       WHERE id = $2
+       RETURNING id, workspace_id, channel_id, user_id, content, message_type, metadata,
+                 parent_message_id, is_edited, is_deleted, created_at, updated_at`,
+      [content, messageId]
+    );
+
+    const updatedMessage = result.rows[0];
+
+    // Broadcast update via WebSocket (including sender)
+    io.in(`channel:${message.rows[0].channel_id}`).emit('message-updated', updatedMessage);
+
+    res.json(updatedMessage);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.errors });
+    }
+    console.error('Edit message error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const deleteMessage = async (req: AuthRequest, res: Response) => {
+  try {
+    const { messageId } = req.params;
+    const userId = req.userId!;
+
+    // Verify message ownership or admin role
+    const message = await pool.query(
+      `SELECT m.id, m.channel_id, m.user_id, cm.role
+       FROM messages m
+       JOIN channel_members cm ON m.channel_id = cm.channel_id AND cm.user_id = $2
+       WHERE m.id = $1`,
+      [messageId, userId]
+    );
+
+    if (message.rows.length === 0) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    const isOwner = message.rows[0].user_id === userId;
+    const isAdmin = message.rows[0].role === 'admin';
+
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ error: 'Cannot delete this message' });
+    }
+
+    // Soft delete
+    await pool.query(
+      'UPDATE messages SET is_deleted = true, content = \'[deleted]\', updated_at = NOW() WHERE id = $1',
+      [messageId]
+    );
+
+    // Broadcast deletion via WebSocket (including sender)
+    io.in(`channel:${message.rows[0].channel_id}`).emit('message-deleted', {
+      id: messageId,
+      channelId: message.rows[0].channel_id,
+    });
+
+    res.json({ message: 'Message deleted successfully' });
+  } catch (error) {
+    console.error('Delete message error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const addReaction = async (req: AuthRequest, res: Response) => {
+  try {
+    const { messageId } = req.params;
+    const { emoji } = z.object({ emoji: z.string() }).parse(req.body);
+    const userId = req.userId!;
+
+    // Check if reaction already exists
+    const existing = await pool.query(
+      'SELECT id FROM message_reactions WHERE message_id = $1 AND user_id = $2 AND emoji = $3',
+      [messageId, userId, emoji]
+    );
+
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ error: 'Reaction already exists' });
+    }
+
+    // Add reaction
+    const result = await pool.query(
+      `INSERT INTO message_reactions (message_id, user_id, emoji)
+       VALUES ($1, $2, $3)
+       RETURNING id, message_id, user_id, emoji, created_at`,
+      [messageId, userId, emoji]
+    );
+
+    const reaction = result.rows[0];
+
+    // Get channel_id for WebSocket broadcast
+    const message = await pool.query(
+      'SELECT channel_id FROM messages WHERE id = $1',
+      [messageId]
+    );
+
+    if (message.rows.length > 0) {
+      io.in(`channel:${message.rows[0].channel_id}`).emit('reaction-added', {
+        messageId,
+        reaction,
+      });
+    }
+
+    res.status(201).json(reaction);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.errors });
+    }
+    console.error('Add reaction error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const removeReaction = async (req: AuthRequest, res: Response) => {
+  try {
+    const { messageId } = req.params;
+    const { emoji } = req.query;
+    const userId = req.userId!;
+
+    await pool.query(
+      'DELETE FROM message_reactions WHERE message_id = $1 AND user_id = $2 AND emoji = $3',
+      [messageId, userId, emoji]
+    );
+
+    // Get channel_id for WebSocket broadcast
+    const message = await pool.query(
+      'SELECT channel_id FROM messages WHERE id = $1',
+      [messageId]
+    );
+
+    if (message.rows.length > 0) {
+      io.in(`channel:${message.rows[0].channel_id}`).emit('reaction-removed', {
+        messageId,
+        userId,
+        emoji,
+      });
+    }
+
+    res.json({ message: 'Reaction removed successfully' });
+  } catch (error) {
+    console.error('Remove reaction error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const getThreadReplies = async (req: AuthRequest, res: Response) => {
+  try {
+    const { workspaceId, channelId, messageId } = req.params;
+    const userId = req.userId!;
+
+    // Verify user is member of workspace
+    const workspaceMember = await pool.query(
+      'SELECT role FROM workspace_members WHERE workspace_id = $1 AND user_id = $2',
+      [workspaceId, userId]
+    );
+
+    if (workspaceMember.rows.length === 0) {
+      return res.status(403).json({ error: 'Not a member of this workspace' });
+    }
+
+    // Verify user is member of channel
+    const channelMember = await pool.query(
+      'SELECT id FROM channel_members WHERE channel_id = $1 AND user_id = $2',
+      [channelId, userId]
+    );
+
+    if (channelMember.rows.length === 0) {
+      return res.status(403).json({ error: 'Not a member of this channel' });
+    }
+
+    // Fetch parent message with user details
+    const parentResult = await pool.query(
+      `SELECT m.id, m.workspace_id, m.channel_id, m.user_id, m.content, m.message_type,
+              m.metadata, m.parent_message_id, m.is_edited, m.is_deleted, m.reply_count,
+              m.last_reply_at, m.created_at, m.updated_at,
+              u.id as user_id, u.username, u.display_name, u.avatar_url
+       FROM messages m
+       JOIN users u ON m.user_id = u.id
+       WHERE m.id = $1`,
+      [messageId]
+    );
+
+    if (parentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    const parentRow = parentResult.rows[0];
+    const parentMessage = {
+      id: parentRow.id,
+      workspaceId: parentRow.workspace_id,
+      channelId: parentRow.channel_id,
+      userId: parentRow.user_id,
+      content: parentRow.content,
+      messageType: parentRow.message_type,
+      metadata: parentRow.metadata,
+      parentMessageId: parentRow.parent_message_id,
+      isEdited: parentRow.is_edited,
+      isDeleted: parentRow.is_deleted,
+      replyCount: parentRow.reply_count || 0,
+      lastReplyAt: parentRow.last_reply_at,
+      createdAt: parentRow.created_at,
+      updatedAt: parentRow.updated_at,
+      user: {
+        id: parentRow.user_id,
+        username: parentRow.username,
+        displayName: parentRow.display_name,
+        avatarUrl: parentRow.avatar_url,
+      },
+    };
+
+    // Fetch thread replies
+    const repliesResult = await pool.query(
+      `SELECT m.id, m.workspace_id, m.channel_id, m.user_id, m.content, m.message_type,
+              m.metadata, m.parent_message_id, m.is_edited, m.is_deleted, m.reply_count,
+              m.last_reply_at, m.created_at, m.updated_at,
+              u.id as user_id, u.username, u.display_name, u.avatar_url
+       FROM messages m
+       JOIN users u ON m.user_id = u.id
+       WHERE m.parent_message_id = $1 AND m.is_deleted = false
+       ORDER BY m.created_at ASC`,
+      [messageId]
+    );
+
+    const replies = repliesResult.rows.map((row) => ({
+      id: row.id,
+      workspaceId: row.workspace_id,
+      channelId: row.channel_id,
+      userId: row.user_id,
+      content: row.content,
+      messageType: row.message_type,
+      metadata: row.metadata,
+      parentMessageId: row.parent_message_id,
+      isEdited: row.is_edited,
+      isDeleted: row.is_deleted,
+      replyCount: row.reply_count || 0,
+      lastReplyAt: row.last_reply_at,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      user: {
+        id: row.user_id,
+        username: row.username,
+        displayName: row.display_name,
+        avatarUrl: row.avatar_url,
+      },
+    }));
+
+    res.json({
+      parentMessage,
+      replies,
+    });
+  } catch (error) {
+    console.error('Get thread replies error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const uploadMessageWithAttachments = async (req: AuthRequest, res: Response) => {
+  try {
+    const { workspaceId, channelId } = req.params;
+    const { content, parentMessageId } = req.body;
+    const userId = req.userId!;
+    const files = req.files as Express.Multer.File[];
+
+    if (!files || files.length === 0) {
+      return res.status(400).json({ error: 'No files uploaded' });
+    }
+
+    // Verify user is member of workspace and channel
+    const workspaceMember = await pool.query(
+      'SELECT role FROM workspace_members WHERE workspace_id = $1 AND user_id = $2',
+      [workspaceId, userId]
+    );
+
+    if (workspaceMember.rows.length === 0) {
+      return res.status(403).json({ error: 'Not a member of this workspace' });
+    }
+
+    const channelMember = await pool.query(
+      'SELECT id FROM channel_members WHERE channel_id = $1 AND user_id = $2',
+      [channelId, userId]
+    );
+
+    if (channelMember.rows.length === 0) {
+      return res.status(403).json({ error: 'Not a member of this channel' });
+    }
+
+    // Create message
+    const messageResult = await pool.query(
+      `INSERT INTO messages (workspace_id, channel_id, user_id, content, parent_message_id, has_attachments, message_type)
+       VALUES ($1, $2, $3, $4, $5, true, 'file')
+       RETURNING id, workspace_id, channel_id, user_id, content, message_type, metadata,
+                 parent_message_id, is_edited, is_deleted, reply_count, last_reply_at, has_attachments, created_at, updated_at`,
+      [workspaceId, channelId, userId, content || '', parentMessageId || null]
+    );
+
+    const message = messageResult.rows[0];
+
+    // Create organized directory structure
+    const uploadDir = path.join('uploads', workspaceId, channelId, message.id);
+    await fs.mkdir(uploadDir, { recursive: true });
+
+    // Move files and create attachment records
+    const attachments = [];
+    for (const file of files) {
+      const newPath = path.join(uploadDir, file.filename);
+      await fs.rename(file.path, newPath);
+
+      const attachmentResult = await pool.query(
+        `INSERT INTO attachments (message_id, filename, original_filename, file_path, file_size, mime_type)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING id, message_id, filename, original_filename, file_size, mime_type, created_at`,
+        [message.id, file.filename, file.originalname, newPath, file.size, file.mimetype]
+      );
+
+      attachments.push({
+        id: attachmentResult.rows[0].id,
+        messageId: attachmentResult.rows[0].message_id,
+        filename: attachmentResult.rows[0].filename,
+        originalFilename: attachmentResult.rows[0].original_filename,
+        fileSize: parseInt(attachmentResult.rows[0].file_size),
+        mimeType: attachmentResult.rows[0].mime_type,
+        createdAt: attachmentResult.rows[0].created_at,
+      });
+    }
+
+    // Fetch user details
+    const userResult = await pool.query(
+      'SELECT id, username, display_name, avatar_url FROM users WHERE id = $1',
+      [userId]
+    );
+
+    const messageWithAttachments = {
+      id: message.id,
+      workspaceId: message.workspace_id,
+      channelId: message.channel_id,
+      userId: message.user_id,
+      content: message.content,
+      messageType: message.message_type,
+      metadata: message.metadata,
+      parentMessageId: message.parent_message_id,
+      isEdited: message.is_edited,
+      isDeleted: message.is_deleted,
+      replyCount: message.reply_count || 0,
+      lastReplyAt: message.last_reply_at,
+      hasAttachments: message.has_attachments,
+      attachments,
+      createdAt: message.created_at,
+      updatedAt: message.updated_at,
+      user: userResult.rows[0],
+    };
+
+    // If this is a thread reply, update parent message reply count
+    if (parentMessageId) {
+      await pool.query(
+        `UPDATE messages
+         SET reply_count = reply_count + 1, last_reply_at = NOW()
+         WHERE id = $1`,
+        [parentMessageId]
+      );
+    }
+
+    // Broadcast message via WebSocket
+    io.in(`channel:${channelId}`).emit('new-message', messageWithAttachments);
+
+    res.status(201).json(messageWithAttachments);
+  } catch (error) {
+    console.error('Upload message with attachments error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const downloadAttachment = async (req: AuthRequest, res: Response) => {
+  try {
+    const { workspaceId, channelId, messageId, attachmentId } = req.params;
+    const userId = req.userId!;
+
+    // Verify user is member of workspace
+    const workspaceMember = await pool.query(
+      'SELECT role FROM workspace_members WHERE workspace_id = $1 AND user_id = $2',
+      [workspaceId, userId]
+    );
+
+    if (workspaceMember.rows.length === 0) {
+      return res.status(403).json({ error: 'Not a member of this workspace' });
+    }
+
+    // Verify user is member of channel
+    const channelMember = await pool.query(
+      'SELECT id FROM channel_members WHERE channel_id = $1 AND user_id = $2',
+      [channelId, userId]
+    );
+
+    if (channelMember.rows.length === 0) {
+      return res.status(403).json({ error: 'Not a member of this channel' });
+    }
+
+    // Get attachment details
+    const attachmentResult = await pool.query(
+      'SELECT id, file_path, original_filename, mime_type FROM attachments WHERE id = $1 AND message_id = $2',
+      [attachmentId, messageId]
+    );
+
+    if (attachmentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Attachment not found' });
+    }
+
+    const attachment = attachmentResult.rows[0];
+
+    // Check if file exists
+    try {
+      await fs.access(attachment.file_path);
+    } catch {
+      return res.status(404).json({ error: 'File not found on server' });
+    }
+
+    // Serve file
+    res.setHeader('Content-Type', attachment.mime_type);
+    res.setHeader('Content-Disposition', `attachment; filename="${attachment.original_filename}"`);
+    res.sendFile(path.resolve(attachment.file_path));
+  } catch (error) {
+    console.error('Download attachment error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
