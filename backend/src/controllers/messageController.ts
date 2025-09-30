@@ -6,6 +6,7 @@ import pool from '../database/db';
 import { AuthRequest } from '../types';
 import { io } from '../index';
 import notificationService from '../services/notificationService';
+import logger from '../utils/logger';
 
 const createMessageSchema = z.object({
   content: z.string().min(1).max(10000),
@@ -94,7 +95,7 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
     // Broadcast message to channel via WebSocket (including sender)
     const roomName = `channel:${channelId}`;
     const socketsInRoom = await io.in(roomName).fetchSockets();
-    console.log(`Broadcasting new-message to room ${roomName}, ${socketsInRoom.length} sockets connected`);
+    logger.debug('Broadcasting new message to channel', { roomName, socketCount: socketsInRoom.length, messageId: message.id });
     io.in(roomName).emit('new-message', messageWithUser);
 
     // Create notifications for mentions
@@ -116,7 +117,7 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.errors });
     }
-    console.error('Send message error:', error);
+    logger.error('Send message error', { error: error instanceof Error ? error.message : 'Unknown error', stack: error instanceof Error ? error.stack : undefined });
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -202,7 +203,7 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
       hasMore: result.rows.length === limit,
     });
   } catch (error) {
-    console.error('Get messages error:', error);
+    logger.error('Get messages error', { error: error instanceof Error ? error.message : 'Unknown error', stack: error instanceof Error ? error.stack : undefined });
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -247,7 +248,7 @@ export const editMessage = async (req: AuthRequest, res: Response) => {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.errors });
     }
-    console.error('Edit message error:', error);
+    logger.error('Edit message error', { error: error instanceof Error ? error.message : 'Unknown error', stack: error instanceof Error ? error.stack : undefined });
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -291,7 +292,7 @@ export const deleteMessage = async (req: AuthRequest, res: Response) => {
 
     res.json({ message: 'Message deleted successfully' });
   } catch (error) {
-    console.error('Delete message error:', error);
+    logger.error('Delete message error', { error: error instanceof Error ? error.message : 'Unknown error', stack: error instanceof Error ? error.stack : undefined });
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -340,7 +341,7 @@ export const addReaction = async (req: AuthRequest, res: Response) => {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.errors });
     }
-    console.error('Add reaction error:', error);
+    logger.error('Add reaction error', { error: error instanceof Error ? error.message : 'Unknown error', stack: error instanceof Error ? error.stack : undefined });
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -372,7 +373,7 @@ export const removeReaction = async (req: AuthRequest, res: Response) => {
 
     res.json({ message: 'Reaction removed successfully' });
   } catch (error) {
-    console.error('Remove reaction error:', error);
+    logger.error('Remove reaction error', { error: error instanceof Error ? error.message : 'Unknown error', stack: error instanceof Error ? error.stack : undefined });
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -483,7 +484,7 @@ export const getThreadReplies = async (req: AuthRequest, res: Response) => {
       replies,
     });
   } catch (error) {
-    console.error('Get thread replies error:', error);
+    logger.error('Get thread replies error', { error: error instanceof Error ? error.message : 'Unknown error', stack: error instanceof Error ? error.stack : undefined });
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -598,7 +599,7 @@ export const uploadMessageWithAttachments = async (req: AuthRequest, res: Respon
 
     res.status(201).json(messageWithAttachments);
   } catch (error) {
-    console.error('Upload message with attachments error:', error);
+    logger.error('Upload message with attachments error', { error: error instanceof Error ? error.message : 'Unknown error', stack: error instanceof Error ? error.stack : undefined });
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -652,7 +653,7 @@ export const downloadAttachment = async (req: AuthRequest, res: Response) => {
     res.setHeader('Content-Disposition', `attachment; filename="${attachment.original_filename}"`);
     res.sendFile(path.resolve(attachment.file_path));
   } catch (error) {
-    console.error('Download attachment error:', error);
+    logger.error('Download attachment error', { error: error instanceof Error ? error.message : 'Unknown error', stack: error instanceof Error ? error.stack : undefined });
     return res.status(500).json({ error: 'Internal server error' });
   }
 };

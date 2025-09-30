@@ -2,12 +2,13 @@ import { Router } from 'express';
 import * as messageController from '../controllers/messageController';
 import { authenticateToken, authenticateTokenFromQuery } from '../middleware/auth';
 import { upload } from '../middleware/upload';
+import logger from '../utils/logger';
 
 const router = Router();
 
 // Log all requests to this router
 router.use((req, _res, next) => {
-  console.log('>>> Message Router - Request URL:', req.url, 'Method:', req.method);
+  logger.debug('Message router request', { url: req.url, method: req.method });
   next();
 });
 

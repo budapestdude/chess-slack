@@ -6,6 +6,7 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import logger, { stream } from './utils/logger';
 
 import authRoutes from './routes/authRoutes';
 import workspaceRoutes from './routes/workspaceRoutes';
@@ -57,7 +58,7 @@ app.use(cors({
   credentials: true,
 }));
 app.use(compression());
-app.use(morgan('dev'));
+app.use(morgan('combined', { stream }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -71,7 +72,7 @@ app.get('/health', (_req, res) => {
 });
 
 // Routes
-console.log('🔧 Router registration order: messageRoutes BEFORE channelRoutes');
+logger.info('Router registration order: messageRoutes BEFORE channelRoutes');
 app.use('/api/auth', authRoutes);
 app.use('/api/workspaces', workspaceRoutes);
 app.use('/api/workspaces', messageRoutes); // Register before channelRoutes to handle download route first
@@ -112,7 +113,7 @@ io.use(async (socket, next) => {
 
 // WebSocket connection handling
 io.on('connection', async (socket) => {
-  console.log('Client connected:', socket.id, 'User:', socket.data.user?.username);
+  logger.info('WebSocket client connected', { socketId: socket.id, username: socket.data.user?.username });
 
   const userId = socket.data.userId;
 
@@ -152,16 +153,16 @@ io.on('connection', async (socket) => {
 
   socket.on('join-workspace', (workspaceId: string) => {
     socket.join(`workspace:${workspaceId}`);
-    console.log(`Socket ${socket.id} joined workspace ${workspaceId}`);
+    logger.debug('Socket joined workspace', { socketId: socket.id, workspaceId });
   });
 
   // Join user-specific room for personal notifications
   socket.join(`user:${userId}`);
-  console.log(`Socket ${socket.id} joined user room for ${userId}`);
+  logger.debug('Socket joined user room', { socketId: socket.id, userId });
 
   socket.on('join-channel', (channelId: string, callback?: (success: boolean) => void) => {
     socket.join(`channel:${channelId}`);
-    console.log(`Socket ${socket.id} joined channel ${channelId}`);
+    logger.debug('Socket joined channel', { socketId: socket.id, channelId });
 
     // Notify others that user joined
     socket.to(`channel:${channelId}`).emit('user-joined-channel', {
@@ -177,7 +178,7 @@ io.on('connection', async (socket) => {
 
   socket.on('leave-channel', (channelId: string) => {
     socket.leave(`channel:${channelId}`);
-    console.log(`Socket ${socket.id} left channel ${channelId}`);
+    logger.debug('Socket left channel', { socketId: socket.id, channelId });
 
     // Notify others that user left
     socket.to(`channel:${channelId}`).emit('user-left-channel', {
@@ -188,7 +189,7 @@ io.on('connection', async (socket) => {
 
   socket.on('join-dm', (dmGroupId: string, callback?: (success: boolean) => void) => {
     socket.join(`dm:${dmGroupId}`);
-    console.log(`Socket ${socket.id} joined DM ${dmGroupId}`);
+    logger.debug('Socket joined DM', { socketId: socket.id, dmGroupId });
 
     // Acknowledge join completion to sender
     if (callback) {
@@ -198,7 +199,7 @@ io.on('connection', async (socket) => {
 
   socket.on('leave-dm', (dmGroupId: string) => {
     socket.leave(`dm:${dmGroupId}`);
-    console.log(`Socket ${socket.id} left DM ${dmGroupId}`);
+    logger.debug('Socket left DM', { socketId: socket.id, dmGroupId });
   });
 
   socket.on('typing', ({ channelId }) => {
@@ -253,7 +254,7 @@ io.on('connection', async (socket) => {
   });
 
   socket.on('disconnect', async () => {
-    console.log('Client disconnected:', socket.id);
+    logger.info('WebSocket client disconnected', { socketId: socket.id });
 
     // Set user as offline when they disconnect
     if (userId) {
@@ -290,7 +291,7 @@ io.on('connection', async (socket) => {
 
 // Error handling
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error('Error:', err);
+  logger.error('Express error handler', { error: err.message, stack: err.stack, status: err.status });
   res.status(err.status || 500).json({
     error: err.message || 'Internal server error',
   });
@@ -304,8 +305,8 @@ app.use((_req, res) => {
 const PORT = process.env.PORT || 3001;
 
 httpServer.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📡 WebSocket server ready`);
+  logger.info(`Server running on port ${PORT}`);
+  logger.info('WebSocket server ready');
 });
 
 export { io };

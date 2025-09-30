@@ -54,9 +54,7 @@ export const sanitizeInput = (req: Request, _res: Response, next: NextFunction) 
   }
 
   if (req.query) {
-    console.log('Before sanitize - req.query.token:', req.query.token);
     req.query = sanitizeObject(req.query);
-    console.log('After sanitize - req.query.token:', req.query.token);
   }
 
   if (req.params) {

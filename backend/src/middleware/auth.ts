@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../types';
 import { verifyToken } from '../utils/jwt';
 import pool from '../database/db';
+import logger from '../utils/logger';
 
 export const authenticateToken = async (
   req: AuthRequest,
@@ -70,23 +71,15 @@ export const authenticateTokenFromQuery = async (
   res: Response,
   next: NextFunction
 ) => {
-  console.log('=== authenticateTokenFromQuery CALLED ===');
-  console.log('URL:', req.url);
-  console.log('Query params:', req.query);
-
   try {
     // Check for token in query parameter first (for file downloads)
     const token = (req.query.token as string) || (req.headers['authorization']?.split(' ')[1]);
-
-    console.log('authenticateTokenFromQuery - token:', token ? 'present' : 'missing');
-    console.log('authenticateTokenFromQuery - query.token:', req.query.token);
 
     if (!token) {
       return res.status(401).json({ error: 'Access token required' });
     }
 
     const decoded = verifyToken(token);
-    console.log('Token decoded successfully:', decoded.userId);
 
     // Fetch user from database
     const result = await pool.query(
@@ -95,7 +88,7 @@ export const authenticateTokenFromQuery = async (
     );
 
     if (result.rows.length === 0) {
-      console.log('User not found for userId:', decoded.userId);
+      logger.warn('User not found during token authentication', { userId: decoded.userId });
       return res.status(401).json({ error: 'User not found' });
     }
 
@@ -103,7 +96,7 @@ export const authenticateTokenFromQuery = async (
     req.userId = decoded.userId;
     next();
   } catch (error) {
-    console.log('Token verification error:', error);
+    logger.error('Token verification failed', { error: error instanceof Error ? error.message : 'Unknown error' });
     return res.status(403).json({ error: 'Invalid or expired token' });
   }
 };
