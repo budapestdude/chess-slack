@@ -11,8 +11,13 @@ export const pool = new Pool({
 });
 
 pool.on('error', (err) => {
-  console.error('Unexpected error on idle client', err);
-  process.exit(-1);
+  console.error('⚠️ Unexpected error on idle PostgreSQL client:', err);
+  // Don't exit process - log error and let pool handle reconnection
+  // Only exit if this is a critical startup error
+  if (!global.serverStarted) {
+    console.error('❌ Database connection failed during startup');
+    process.exit(1);
+  }
 });
 
 export const query = async (text: string, params?: any[]) => {
