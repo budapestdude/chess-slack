@@ -17,6 +17,7 @@ import logger, { stream } from './utils/logger';
 
 console.log('✅ Logger imported');
 
+console.log('📦 Importing routes...');
 import authRoutes from './routes/authRoutes';
 import workspaceRoutes from './routes/workspaceRoutes';
 import channelRoutes from './routes/channelRoutes';
@@ -29,21 +30,29 @@ import invitationRoutes from './routes/invitationRoutes';
 import draftRoutes from './routes/draftRoutes';
 import uploadRoutes from './routes/uploadRoutes';
 import personalRoutes from './routes/personalRoutes';
+console.log('✅ All routes imported');
+
 // import agentRoutes from './routes/agentRoutes';
 // import taskRoutes from './routes/taskRoutes';
 // import artifactRoutes from './routes/artifactRoutes';
+
+console.log('📦 Importing utilities and middleware...');
 import { verifyToken } from './utils/jwt';
 import pool from './database/db';
 import { apiLimiter } from './middleware/rateLimiter';
 import { sanitizeInput } from './middleware/sanitize';
 import { errorHandler } from './middleware/errorHandler';
 import { asyncHandler } from './utils/asyncHandler';
+console.log('✅ Utilities imported');
 // import { setupAgentSocketHandlers, setupAgentClientHandlers } from './sockets/agentSocket';
 
+console.log('⚙️ Configuring environment...');
 dotenv.config();
 
+console.log('🏗️ Creating Express app and HTTP server...');
 const app = express();
 const httpServer = createServer(app);
+console.log('✅ App and server created');
 
 // Socket.IO setup
 const io = new Server(httpServer, {
