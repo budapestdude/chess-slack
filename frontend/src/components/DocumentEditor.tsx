@@ -105,8 +105,8 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
     try {
       const updateData: any = {
         title: title || 'Untitled',
-        content,
-        icon,
+        content: content || '',
+        icon: icon || undefined,
       };
 
       // Only include coverImageUrl if it's a valid URL
