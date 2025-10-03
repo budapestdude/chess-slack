@@ -95,10 +95,10 @@ export default function DMView({ dmGroup, workspaceId }: DMViewProps) {
     }
   };
 
-  const handleMessageUpdated = (data: { message: any }) => {
-    if (data.message.dmGroupId === dmGroup.id) {
+  const handleMessageUpdated = (message: any) => {
+    if (message.dmGroupId === dmGroup.id) {
       setMessages((prev) =>
-        prev.map((m) => (m.id === data.message.id ? { ...m, ...data.message, isEdited: true } : m))
+        prev.map((m) => (m.id === message.id ? { ...m, ...message, isEdited: true } : m))
       );
       toast.success('Message updated');
     }

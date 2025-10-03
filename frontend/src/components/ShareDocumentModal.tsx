@@ -10,6 +10,7 @@ import {
   Globe,
   Lock,
   Copy,
+  Users,
 } from 'lucide-react';
 import {
   Document,

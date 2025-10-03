@@ -121,10 +121,10 @@ export default function ChannelView({ channel, workspaceId }: ChannelViewProps) 
     }
   };
 
-  const handleMessageUpdated = (data: { message: Message }) => {
-    if (data.message.channelId === channel.id) {
+  const handleMessageUpdated = (message: Message) => {
+    if (message.channelId === channel.id) {
       setMessages((prev) =>
-        prev.map((m) => (m.id === data.message.id ? { ...m, ...data.message, isEdited: true } : m))
+        prev.map((m) => (m.id === message.id ? { ...m, ...message, isEdited: true } : m))
       );
       toast.success('Message updated');
     }

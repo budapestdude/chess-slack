@@ -71,7 +71,7 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
 
   // Refs
   const contentEditableRef = useRef<HTMLDivElement>(null);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const saveTimeoutRef = useRef<number | null>(null);
 
   // Auto-save on content change
   useEffect(() => {
@@ -118,8 +118,9 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
     }
   };
 
-  const execCommand = (command: string, value: string | undefined = undefined) => {
-    document.execCommand(command, false, value);
+  const executeFormatCommand = (command: string, value: string | undefined = undefined) => {
+    // execCommand is deprecated but still widely supported for contentEditable
+    (document as any).execCommand(command, false, value);
     contentEditableRef.current?.focus();
   };
 
@@ -174,7 +175,7 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
   const insertLink = () => {
     const url = prompt('Enter URL:');
     if (url) {
-      execCommand('createLink', url);
+      executeFormatCommand('createLink', url);
     }
   };
 
@@ -215,21 +216,21 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
               <div className="flex items-center gap-1">
                 {/* Text Formatting */}
                 <button
-                  onClick={() => execCommand('bold')}
+                  onClick={() => executeFormatCommand('bold')}
                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                   title="Bold"
                 >
                   <Bold className="w-4 h-4 text-gray-700" />
                 </button>
                 <button
-                  onClick={() => execCommand('italic')}
+                  onClick={() => executeFormatCommand('italic')}
                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                   title="Italic"
                 >
                   <Italic className="w-4 h-4 text-gray-700" />
                 </button>
                 <button
-                  onClick={() => execCommand('underline')}
+                  onClick={() => executeFormatCommand('underline')}
                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                   title="Underline"
                 >
@@ -240,21 +241,21 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
 
                 {/* Headings */}
                 <button
-                  onClick={() => execCommand('formatBlock', 'h1')}
+                  onClick={() => executeFormatCommand('formatBlock', 'h1')}
                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                   title="Heading 1"
                 >
                   <Heading1 className="w-4 h-4 text-gray-700" />
                 </button>
                 <button
-                  onClick={() => execCommand('formatBlock', 'h2')}
+                  onClick={() => executeFormatCommand('formatBlock', 'h2')}
                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                   title="Heading 2"
                 >
                   <Heading2 className="w-4 h-4 text-gray-700" />
                 </button>
                 <button
-                  onClick={() => execCommand('formatBlock', 'h3')}
+                  onClick={() => executeFormatCommand('formatBlock', 'h3')}
                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                   title="Heading 3"
                 >
@@ -265,14 +266,14 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
 
                 {/* Lists */}
                 <button
-                  onClick={() => execCommand('insertUnorderedList')}
+                  onClick={() => executeFormatCommand('insertUnorderedList')}
                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                   title="Bullet List"
                 >
                   <List className="w-4 h-4 text-gray-700" />
                 </button>
                 <button
-                  onClick={() => execCommand('insertOrderedList')}
+                  onClick={() => executeFormatCommand('insertOrderedList')}
                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                   title="Numbered List"
                 >
@@ -290,7 +291,7 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
                   <LinkIcon className="w-4 h-4 text-gray-700" />
                 </button>
                 <button
-                  onClick={() => execCommand('formatBlock', 'pre')}
+                  onClick={() => executeFormatCommand('formatBlock', 'pre')}
                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                   title="Code Block"
                 >
