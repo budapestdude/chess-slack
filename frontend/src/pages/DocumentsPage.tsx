@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { RootState } from '../store';
 import {
   Search,
   Plus,
@@ -41,15 +44,18 @@ const DocumentsPage: React.FC = () => {
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [isSearching, setIsSearching] = useState(false);
 
-  // Mock data
-  const workspaceId = 'workspace-1';
-  const currentUserId = 'user-1';
+  // Get workspaceId from route params and user from Redux store
+  const { workspaceId } = useParams<{ workspaceId: string }>();
+  const { user: currentUser } = useSelector((state: RootState) => state.auth);
+  const currentUserId = currentUser?.id || '';
 
   // Load documents on mount
   useEffect(() => {
-    loadDocuments();
-    loadDocumentTree();
-  }, [filterType, showFavorites]);
+    if (workspaceId) {
+      loadDocuments();
+      loadDocumentTree();
+    }
+  }, [workspaceId, filterType, showFavorites]);
 
   // Search debounce
   useEffect(() => {
@@ -65,6 +71,8 @@ const DocumentsPage: React.FC = () => {
   }, [searchQuery]);
 
   const loadDocuments = async () => {
+    if (!workspaceId) return;
+
     setIsLoading(true);
     try {
       const filters: any = {};
@@ -83,6 +91,8 @@ const DocumentsPage: React.FC = () => {
   };
 
   const loadDocumentTree = async () => {
+    if (!workspaceId) return;
+
     try {
       const tree = await getDocumentTree(workspaceId);
       setDocumentTree(tree);
@@ -93,7 +103,7 @@ const DocumentsPage: React.FC = () => {
   };
 
   const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
+    if (!workspaceId || !searchQuery.trim()) return;
 
     setIsSearching(true);
     try {
@@ -108,6 +118,8 @@ const DocumentsPage: React.FC = () => {
   };
 
   const handleCreateDocument = async (type: 'document' | 'wiki' | 'note') => {
+    if (!workspaceId) return;
+
     try {
       const newDoc = await createDocument(workspaceId, {
         title: 'Untitled',
