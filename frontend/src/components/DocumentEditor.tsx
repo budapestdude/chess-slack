@@ -95,7 +95,7 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
     setTitle(document.title);
     setContent(document.content);
     setIcon(document.icon || '');
-    setCoverImage(document.coverImage || '');
+    setCoverImage(document.coverImageUrl || document.coverImage || '');
   }, [document.id]);
 
   const handleAutoSave = async () => {
@@ -103,12 +103,18 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
 
     setIsSaving(true);
     try {
-      const updated = await updateDocument(workspaceId, document.id, {
+      const updateData: any = {
         title: title || 'Untitled',
         content,
         icon,
-        coverImage,
-      });
+      };
+
+      // Only include coverImageUrl if it's a valid URL
+      if (coverImage && coverImage.startsWith('http')) {
+        updateData.coverImageUrl = coverImage;
+      }
+
+      const updated = await updateDocument(workspaceId, document.id, updateData);
       setLastSaved(new Date());
       onUpdate(updated);
     } catch (error) {

@@ -16,7 +16,8 @@ export interface Document {
   content: string;
   type: 'document' | 'wiki' | 'note';
   icon?: string;
-  coverImage?: string;
+  coverImage?: string; // Keep for backward compatibility
+  coverImageUrl?: string; // Backend field name
   parentId?: string;
   createdBy: string;
   createdAt: string;
@@ -77,7 +78,7 @@ export interface CreateDocumentData {
   content?: string;
   type: 'document' | 'wiki' | 'note';
   icon?: string;
-  coverImage?: string;
+  coverImageUrl?: string;
   parentId?: string;
 }
 
