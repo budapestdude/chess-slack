@@ -12,7 +12,7 @@ import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid';
 import RecurringTasksManager from './RecurringTasksManager';
 
 interface DailyChecklistCardProps {
-  workspaceId: number;
+  workspaceId: string;
   items: DailyChecklistItem[];
   onUpdate: () => void;
 }

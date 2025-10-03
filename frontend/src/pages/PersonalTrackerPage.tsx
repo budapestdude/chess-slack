@@ -58,10 +58,10 @@ const PersonalTrackerPage: React.FC = () => {
     try {
       setLoading(true);
       const [habitsData, tasksData, statsData, checklistData] = await Promise.all([
-        getHabits(parseInt(workspaceId)),
-        getPersonalTasks(parseInt(workspaceId)),
-        getDashboardStats(parseInt(workspaceId)),
-        getDailyChecklist(parseInt(workspaceId)),
+        getHabits(workspaceId),
+        getPersonalTasks(workspaceId),
+        getDashboardStats(workspaceId),
+        getDailyChecklist(workspaceId),
       ]);
       setHabits(habitsData);
       setTasks(tasksData);
@@ -79,7 +79,7 @@ const PersonalTrackerPage: React.FC = () => {
     if (!workspaceId || !newHabit.name.trim()) return;
 
     try {
-      await createHabit(parseInt(workspaceId), newHabit);
+      await createHabit(workspaceId, newHabit);
       setNewHabit({ name: '', target_type: 'boolean', frequency: 'daily' });
       setShowNewHabitForm(false);
       loadData();
@@ -93,7 +93,7 @@ const PersonalTrackerPage: React.FC = () => {
     if (!workspaceId || !newTask.title.trim()) return;
 
     try {
-      await createPersonalTask(parseInt(workspaceId), newTask);
+      await createPersonalTask(workspaceId, newTask);
       setNewTask({ title: '', priority: 'medium', status: 'todo' });
       setShowNewTaskForm(false);
       loadData();
@@ -106,7 +106,7 @@ const PersonalTrackerPage: React.FC = () => {
     if (!workspaceId) return;
 
     try {
-      await createCheckin(parseInt(workspaceId), {
+      await createCheckin(workspaceId, {
         habit_id: habitId,
         completed,
         check_date: new Date().toISOString().split('T')[0],
@@ -122,7 +122,7 @@ const PersonalTrackerPage: React.FC = () => {
 
     try {
       const newStatus = task.status === 'completed' ? 'todo' : 'completed';
-      await updatePersonalTask(parseInt(workspaceId), task.id, { status: newStatus });
+      await updatePersonalTask(workspaceId, task.id, { status: newStatus });
       loadData();
     } catch (error) {
       console.error('Error updating task:', error);
@@ -196,7 +196,7 @@ const PersonalTrackerPage: React.FC = () => {
         {/* Daily Checklist Section */}
         <div className="mb-8">
           <DailyChecklistCard
-            workspaceId={parseInt(workspaceId!)}
+            workspaceId={workspaceId!}
             items={checklistItems}
             onUpdate={loadData}
           />

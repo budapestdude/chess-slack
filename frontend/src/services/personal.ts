@@ -133,14 +133,14 @@ const getAuthHeaders = () => {
 };
 
 // Habit API
-export const createHabit = async (workspaceId: number, data: CreateHabitRequest): Promise<PersonalHabit> => {
+export const createHabit = async (workspaceId: string, data: CreateHabitRequest): Promise<PersonalHabit> => {
   const response = await axios.post(`${API_URL}/api/personal/${workspaceId}/habits`, data, {
     headers: getAuthHeaders(),
   });
   return response.data;
 };
 
-export const getHabits = async (workspaceId: number, includeArchived = false): Promise<PersonalHabit[]> => {
+export const getHabits = async (workspaceId: string, includeArchived = false): Promise<PersonalHabit[]> => {
   const response = await axios.get(`${API_URL}/api/personal/${workspaceId}/habits`, {
     params: { includeArchived },
     headers: getAuthHeaders(),
@@ -148,7 +148,7 @@ export const getHabits = async (workspaceId: number, includeArchived = false): P
   return response.data;
 };
 
-export const getHabit = async (workspaceId: number, habitId: number): Promise<PersonalHabit> => {
+export const getHabit = async (workspaceId: string, habitId: number): Promise<PersonalHabit> => {
   const response = await axios.get(`${API_URL}/api/personal/${workspaceId}/habits/${habitId}`, {
     headers: getAuthHeaders(),
   });
@@ -156,7 +156,7 @@ export const getHabit = async (workspaceId: number, habitId: number): Promise<Pe
 };
 
 export const updateHabit = async (
-  workspaceId: number,
+  workspaceId: string,
   habitId: number,
   data: Partial<CreateHabitRequest>
 ): Promise<PersonalHabit> => {
@@ -166,7 +166,7 @@ export const updateHabit = async (
   return response.data;
 };
 
-export const deleteHabit = async (workspaceId: number, habitId: number): Promise<void> => {
+export const deleteHabit = async (workspaceId: string, habitId: number): Promise<void> => {
   await axios.delete(`${API_URL}/api/personal/${workspaceId}/habits/${habitId}`, {
     headers: getAuthHeaders(),
   });
@@ -174,7 +174,7 @@ export const deleteHabit = async (workspaceId: number, habitId: number): Promise
 
 // Check-in API
 export const createCheckin = async (
-  workspaceId: number,
+  workspaceId: string,
   data: CreateCheckinRequest
 ): Promise<PersonalHabitCheckin> => {
   const response = await axios.post(`${API_URL}/api/personal/${workspaceId}/checkins`, data, {
@@ -184,7 +184,7 @@ export const createCheckin = async (
 };
 
 export const getCheckins = async (
-  workspaceId: number,
+  workspaceId: string,
   habitId: number,
   startDate?: string,
   endDate?: string
@@ -198,7 +198,7 @@ export const getCheckins = async (
 
 // Personal Task API
 export const createPersonalTask = async (
-  workspaceId: number,
+  workspaceId: string,
   data: CreatePersonalTaskRequest
 ): Promise<PersonalTask> => {
   const response = await axios.post(`${API_URL}/api/personal/${workspaceId}/tasks`, data, {
@@ -207,7 +207,7 @@ export const createPersonalTask = async (
   return response.data;
 };
 
-export const getPersonalTasks = async (workspaceId: number, status?: string): Promise<PersonalTask[]> => {
+export const getPersonalTasks = async (workspaceId: string, status?: string): Promise<PersonalTask[]> => {
   const response = await axios.get(`${API_URL}/api/personal/${workspaceId}/tasks`, {
     params: { status },
     headers: getAuthHeaders(),
@@ -216,7 +216,7 @@ export const getPersonalTasks = async (workspaceId: number, status?: string): Pr
 };
 
 export const updatePersonalTask = async (
-  workspaceId: number,
+  workspaceId: string,
   taskId: number,
   data: Partial<CreatePersonalTaskRequest>
 ): Promise<PersonalTask> => {
@@ -226,14 +226,14 @@ export const updatePersonalTask = async (
   return response.data;
 };
 
-export const deletePersonalTask = async (workspaceId: number, taskId: number): Promise<void> => {
+export const deletePersonalTask = async (workspaceId: string, taskId: number): Promise<void> => {
   await axios.delete(`${API_URL}/api/personal/${workspaceId}/tasks/${taskId}`, {
     headers: getAuthHeaders(),
   });
 };
 
 // Dashboard Stats
-export const getDashboardStats = async (workspaceId: number): Promise<PersonalDashboardStats> => {
+export const getDashboardStats = async (workspaceId: string): Promise<PersonalDashboardStats> => {
   const response = await axios.get(`${API_URL}/api/personal/${workspaceId}/stats`, {
     headers: getAuthHeaders(),
   });
@@ -242,7 +242,7 @@ export const getDashboardStats = async (workspaceId: number): Promise<PersonalDa
 
 // Daily Checklist API
 export const getDailyChecklist = async (
-  workspaceId: number,
+  workspaceId: string,
   date?: string
 ): Promise<DailyChecklistItem[]> => {
   const response = await axios.get(`${API_URL}/api/personal/${workspaceId}/checklist`, {
@@ -253,7 +253,7 @@ export const getDailyChecklist = async (
 };
 
 export const bulkCreateChecklistItems = async (
-  workspaceId: number,
+  workspaceId: string,
   items: string[],
   date?: string
 ): Promise<DailyChecklistItem[]> => {
@@ -266,7 +266,7 @@ export const bulkCreateChecklistItems = async (
 };
 
 export const toggleChecklistItem = async (
-  workspaceId: number,
+  workspaceId: string,
   itemId: number
 ): Promise<DailyChecklistItem> => {
   const response = await axios.post(
@@ -277,14 +277,14 @@ export const toggleChecklistItem = async (
   return response.data;
 };
 
-export const deleteChecklistItem = async (workspaceId: number, itemId: number): Promise<void> => {
+export const deleteChecklistItem = async (workspaceId: string, itemId: number): Promise<void> => {
   await axios.delete(`${API_URL}/api/personal/${workspaceId}/checklist/${itemId}`, {
     headers: getAuthHeaders(),
   });
 };
 
 export const clearCompletedChecklistItems = async (
-  workspaceId: number,
+  workspaceId: string,
   date?: string
 ): Promise<void> => {
   await axios.delete(`${API_URL}/api/personal/${workspaceId}/checklist/completed/clear`, {
@@ -294,7 +294,7 @@ export const clearCompletedChecklistItems = async (
 };
 
 // Recurring Tasks API
-export const getRecurringTasks = async (workspaceId: number): Promise<RecurringTask[]> => {
+export const getRecurringTasks = async (workspaceId: string): Promise<RecurringTask[]> => {
   const response = await axios.get(`${API_URL}/api/personal/${workspaceId}/recurring`, {
     headers: getAuthHeaders(),
   });
@@ -302,7 +302,7 @@ export const getRecurringTasks = async (workspaceId: number): Promise<RecurringT
 };
 
 export const createRecurringTask = async (
-  workspaceId: number,
+  workspaceId: string,
   data: {
     content: string;
     frequency: 'daily' | 'weekly' | 'weekdays' | 'weekends' | 'custom';
@@ -318,7 +318,7 @@ export const createRecurringTask = async (
 };
 
 export const updateRecurringTask = async (
-  workspaceId: number,
+  workspaceId: string,
   taskId: number,
   data: Partial<RecurringTask>
 ): Promise<RecurringTask> => {
@@ -330,14 +330,14 @@ export const updateRecurringTask = async (
   return response.data;
 };
 
-export const deleteRecurringTask = async (workspaceId: number, taskId: number): Promise<void> => {
+export const deleteRecurringTask = async (workspaceId: string, taskId: number): Promise<void> => {
   await axios.delete(`${API_URL}/api/personal/${workspaceId}/recurring/${taskId}`, {
     headers: getAuthHeaders(),
   });
 };
 
 export const generateRecurringTasks = async (
-  workspaceId: number,
+  workspaceId: string,
   date?: string
 ): Promise<{ message: string; count: number; items: DailyChecklistItem[] }> => {
   const response = await axios.post(
