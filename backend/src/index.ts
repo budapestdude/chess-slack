@@ -19,7 +19,14 @@ console.log('✅ Logger imported');
 
 console.log('📦 Importing routes...');
 console.log('  - authRoutes...');
-import authRoutes from './routes/authRoutes';
+let authRoutes: any;
+try {
+  authRoutes = require('./routes/authRoutes').default;
+  console.log('  ✓ authRoutes loaded');
+} catch (error) {
+  console.error('  ✗ authRoutes FAILED:', error);
+  throw error;
+}
 console.log('  - workspaceRoutes...');
 import workspaceRoutes from './routes/workspaceRoutes';
 console.log('  - channelRoutes...');
