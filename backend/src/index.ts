@@ -73,10 +73,15 @@ const app = express();
 const httpServer = createServer(app);
 console.log('✅ App and server created');
 
+// Parse CORS origins from environment variable (comma-separated) or use defaults
+const corsOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
+  : ['http://localhost:5173', 'http://localhost:5174'];
+
 // Socket.IO setup
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.CORS_ORIGIN || ['http://localhost:5173', 'http://localhost:5174'],
+    origin: corsOrigins,
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -92,8 +97,8 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       scriptSrc: ["'self'"],
-      imgSrc: ["'self'", 'data:', 'https:', 'http://localhost:3001', 'http://localhost:5173', 'http://localhost:5174'],
-      connectSrc: ["'self'", 'http://localhost:3001', 'ws://localhost:3001'],
+      imgSrc: ["'self'", 'data:', 'https:', 'http://localhost:3001', 'http://localhost:5173', 'http://localhost:5174', 'https://chess-slack-production.up.railway.app'],
+      connectSrc: ["'self'", 'http://localhost:3001', 'ws://localhost:3001', 'https://chess-slack-production.up.railway.app', 'wss://chess-slack-production.up.railway.app', ...corsOrigins],
     },
   },
   crossOriginResourcePolicy: { policy: 'cross-origin' },
@@ -104,7 +109,7 @@ app.use(helmet({
   },
 }));
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || ['http://localhost:5173', 'http://localhost:5174'],
+  origin: corsOrigins,
   credentials: true,
 }));
 app.use(compression());
