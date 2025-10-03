@@ -4,7 +4,6 @@ import {
   toggleChecklistItem,
   deleteChecklistItem,
   bulkCreateChecklistItems,
-  clearCompletedChecklistItems,
   getDailyChecklist,
 } from '../services/personal';
 import { CheckCircleIcon, TrashIcon, PlusIcon, SparklesIcon, ChevronLeftIcon, ChevronRightIcon, CalendarIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
@@ -24,6 +23,7 @@ const DailyChecklistCard: React.FC<DailyChecklistCardProps> = ({ workspaceId, it
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [viewingItems, setViewingItems] = useState<DailyChecklistItem[]>(items);
   const [showRecurringManager, setShowRecurringManager] = useState(false);
+  const [hideCompleted, setHideCompleted] = useState(false);
 
   const loadDateData = async (date: string) => {
     try {
@@ -103,19 +103,14 @@ const DailyChecklistCard: React.FC<DailyChecklistCardProps> = ({ workspaceId, it
     }
   };
 
-  const handleClearCompleted = async () => {
-    try {
-      await clearCompletedChecklistItems(workspaceId, selectedDate);
-      loadDateData(selectedDate);
-      if (isToday) onUpdate();
-    } catch (error) {
-      console.error('Error clearing completed items:', error);
-    }
+  const toggleHideCompleted = () => {
+    setHideCompleted(!hideCompleted);
   };
 
   const isToday = selectedDate === new Date().toISOString().split('T')[0];
   const completedCount = viewingItems.filter((item) => item.completed).length;
   const totalCount = viewingItems.length;
+  const displayedItems = hideCompleted ? viewingItems.filter((item) => !item.completed) : viewingItems;
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr + 'T00:00:00');
@@ -196,10 +191,10 @@ const DailyChecklistCard: React.FC<DailyChecklistCardProps> = ({ workspaceId, it
             </button>
             {completedCount > 0 && (
               <button
-                onClick={handleClearCompleted}
+                onClick={toggleHideCompleted}
                 className="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
               >
-                Clear Completed
+                {hideCompleted ? 'Show Completed' : 'Hide Completed'}
               </button>
             )}
             <button
@@ -275,7 +270,7 @@ const DailyChecklistCard: React.FC<DailyChecklistCardProps> = ({ workspaceId, it
               </p>
             </div>
           ) : (
-            viewingItems.map((item) => (
+            displayedItems.map((item) => (
               <div
                 key={item.id}
                 className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
