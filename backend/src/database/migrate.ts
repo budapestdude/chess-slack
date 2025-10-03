@@ -106,13 +106,20 @@ async function runMigrations() {
 }
 
 // Run migrations and exit
-runMigrations()
-  .then(() => {
-    pool.end();
-    // Don't call process.exit(0) - let it return naturally for shell chaining
-  })
-  .catch((error) => {
+async function main() {
+  try {
+    await runMigrations();
+    await pool.end();
+    process.exit(0);
+  } catch (error) {
     console.error('Migration failed:', error);
-    pool.end();
+    try {
+      await pool.end();
+    } catch (e) {
+      // Ignore pool.end() errors
+    }
     process.exit(1);
-  });
+  }
+}
+
+main();

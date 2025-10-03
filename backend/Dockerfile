@@ -18,9 +18,13 @@ RUN npm run build
 RUN mkdir -p dist/database/migrations && \
     cp -r src/database/migrations/*.sql dist/database/migrations/ 2>/dev/null || true
 
+# Copy and make start script executable
+COPY start.sh /app/start.sh
+RUN chmod +x /app/start.sh
+
 # Verify dist/index.js exists
 RUN ls -la dist/ && echo "Checking dist/index.js..." && ls -la dist/index.js
 
 EXPOSE 3001
 
-CMD ["sh", "-c", "npm run migrate:prod && echo 'Migrations complete, starting server...' && node dist/index.js"]
+CMD ["/app/start.sh"]
