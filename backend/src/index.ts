@@ -411,7 +411,7 @@ app.use((_req, res) => {
 // Global error handler (must be last)
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 3001;
+const PORT = parseInt(process.env.PORT || '3001', 10);
 
 httpServer.listen(PORT, '0.0.0.0', () => {
   logger.info(`Server running on port ${PORT}`);
