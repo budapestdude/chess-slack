@@ -1,3 +1,7 @@
+console.log('🚀 Starting ChessSlack backend...');
+console.log('Node version:', process.version);
+console.log('Working directory:', process.cwd());
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -6,7 +10,12 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+
+console.log('✅ Core modules imported');
+
 import logger, { stream } from './utils/logger';
+
+console.log('✅ Logger imported');
 
 import authRoutes from './routes/authRoutes';
 import workspaceRoutes from './routes/workspaceRoutes';
