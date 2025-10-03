@@ -444,7 +444,7 @@ app.use(errorHandler);
 const PORT = parseInt(process.env.PORT || '3001', 10);
 
 httpServer.listen(PORT, '0.0.0.0', () => {
-  (global as any).serverStarted = true;
+  global.serverStarted = true;
   logger.info(`Server running on port ${PORT}`);
   logger.info('WebSocket server ready');
   console.log(`✅ Server successfully started on port ${PORT}`);

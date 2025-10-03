@@ -3,6 +3,11 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// Extend global type
+declare global {
+  var serverStarted: boolean | undefined;
+}
+
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   max: 20,
