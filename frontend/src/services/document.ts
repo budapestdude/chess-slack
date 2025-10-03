@@ -134,7 +134,8 @@ export const getDocuments = async (
       throw new Error(`Failed to fetch documents: ${response.statusText}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+    return data.documents || data;
   } catch (error) {
     console.error('Error fetching documents:', error);
     throw error;
