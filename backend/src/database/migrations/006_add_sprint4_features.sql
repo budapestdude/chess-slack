@@ -1,26 +1,20 @@
 -- Sprint 4 Migration: File Uploads, Reminders, and Scheduled Messages
 -- Created: 2025-09-30
 
--- 1. Attachments Table (for file uploads)
-CREATE TABLE IF NOT EXISTS attachments (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  message_id UUID REFERENCES messages(id) ON DELETE CASCADE,
-  uploader_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-  filename VARCHAR(255) NOT NULL,
-  original_filename VARCHAR(255) NOT NULL,
-  file_path VARCHAR(500) NOT NULL,
-  file_size BIGINT NOT NULL,
-  mime_type VARCHAR(100) NOT NULL,
-  file_type VARCHAR(50), -- 'image', 'video', 'audio', 'document', 'other'
-  thumbnail_path VARCHAR(500),
-  width INTEGER, -- for images/videos
-  height INTEGER, -- for images/videos
-  duration INTEGER, -- for audio/videos (in seconds)
-  metadata JSONB DEFAULT '{}',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- 1. Enhance Attachments Table (for file uploads)
+-- Note: Table already exists from initial schema, adding missing columns
+ALTER TABLE attachments ADD COLUMN IF NOT EXISTS uploader_id UUID REFERENCES users(id) ON DELETE CASCADE;
+ALTER TABLE attachments ADD COLUMN IF NOT EXISTS workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE;
+ALTER TABLE attachments ADD COLUMN IF NOT EXISTS file_type VARCHAR(50); -- 'image', 'video', 'audio', 'document', 'other'
+ALTER TABLE attachments ADD COLUMN IF NOT EXISTS thumbnail_path VARCHAR(500);
+ALTER TABLE attachments ADD COLUMN IF NOT EXISTS width INTEGER; -- for images/videos
+ALTER TABLE attachments ADD COLUMN IF NOT EXISTS height INTEGER; -- for images/videos
+ALTER TABLE attachments ADD COLUMN IF NOT EXISTS duration INTEGER; -- for audio/videos (in seconds)
+ALTER TABLE attachments ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}';
+ALTER TABLE attachments ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+
+-- Update file_path to be longer
+ALTER TABLE attachments ALTER COLUMN file_path TYPE VARCHAR(500);
 
 CREATE INDEX IF NOT EXISTS idx_attachments_message_id ON attachments(message_id);
 CREATE INDEX IF NOT EXISTS idx_attachments_uploader_id ON attachments(uploader_id);
