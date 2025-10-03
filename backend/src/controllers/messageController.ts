@@ -111,6 +111,28 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
         null,
         userId
       );
+
+      // Store mentions in message_mentions table
+      const mentionedUsers = await pool.query(
+        'SELECT id FROM users WHERE username = ANY($1)',
+        [mentionedUsernames]
+      );
+
+      for (const mentionedUser of mentionedUsers.rows) {
+        await pool.query(
+          'INSERT INTO message_mentions (message_id, mentioned_user_id, mention_type) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+          [message.id, mentionedUser.id, 'user']
+        );
+      }
+    }
+
+    // Handle @channel and @here mentions
+    if (content.includes('@channel') || content.includes('@here')) {
+      const mentionType = content.includes('@channel') ? 'channel' : 'here';
+      await pool.query(
+        'INSERT INTO message_mentions (message_id, mention_type) VALUES ($1, $2)',
+        [message.id, mentionType]
+      );
     }
 
   res.status(201).json(messageWithUser);
@@ -654,4 +676,365 @@ export const downloadAttachment = async (req: AuthRequest, res: Response) => {
   res.setHeader('Content-Disposition', `attachment; filename="${sanitizedFilename}"`);
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.sendFile(resolvedPath);
+};
+
+export const pinMessage = async (req: AuthRequest, res: Response) => {
+  const { messageId } = req.params;
+  const userId = req.userId!;
+
+  // Get message details
+  const messageResult = await pool.query(
+    'SELECT channel_id, dm_group_id FROM messages WHERE id = $1',
+    [messageId]
+  );
+
+  if (messageResult.rows.length === 0) {
+    throw new NotFoundError('Message not found');
+  }
+
+  const message = messageResult.rows[0];
+
+  // Verify user has permission to pin
+  if (message.channel_id) {
+    // Channel message - check if user is admin or owner
+    const memberResult = await pool.query(
+      'SELECT role FROM channel_members WHERE channel_id = $1 AND user_id = $2',
+      [message.channel_id, userId]
+    );
+
+    if (memberResult.rows.length === 0) {
+      throw new ForbiddenError('Not a member of this channel');
+    }
+
+    const role = memberResult.rows[0].role;
+    if (role !== 'owner' && role !== 'admin') {
+      throw new ForbiddenError('Only channel admins and owners can pin messages');
+    }
+  } else if (message.dm_group_id) {
+    // DM message - check if user is member
+    const memberResult = await pool.query(
+      'SELECT id FROM dm_group_members WHERE dm_group_id = $1 AND user_id = $2',
+      [message.dm_group_id, userId]
+    );
+
+    if (memberResult.rows.length === 0) {
+      throw new ForbiddenError('Not a member of this DM');
+    }
+  }
+
+  // Pin the message
+  try {
+    const result = await pool.query(
+      `INSERT INTO pinned_messages (message_id, channel_id, dm_group_id, pinned_by)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, message_id, channel_id, dm_group_id, pinned_by, pinned_at`,
+      [messageId, message.channel_id, message.dm_group_id, userId]
+    );
+
+    const pinnedMessage = result.rows[0];
+
+    // Emit WebSocket event
+    const roomId = message.channel_id || message.dm_group_id;
+    io.to(roomId).emit('message-pinned', {
+      messageId,
+      pinnedBy: userId,
+      pinnedAt: pinnedMessage.pinned_at,
+    });
+
+    logger.info(`Message ${messageId} pinned by user ${userId}`);
+
+    res.status(201).json(pinnedMessage);
+  } catch (error: any) {
+    if (error.code === '23505') {
+      // Unique constraint violation
+      throw new BadRequestError('Message is already pinned');
+    }
+    throw error;
+  }
+};
+
+export const unpinMessage = async (req: AuthRequest, res: Response) => {
+  const { messageId } = req.params;
+  const userId = req.userId!;
+
+  // Get pinned message details
+  const pinnedResult = await pool.query(
+    `SELECT pm.id, pm.channel_id, pm.dm_group_id, m.id as message_id
+     FROM pinned_messages pm
+     JOIN messages m ON pm.message_id = m.id
+     WHERE pm.message_id = $1`,
+    [messageId]
+  );
+
+  if (pinnedResult.rows.length === 0) {
+    throw new NotFoundError('Pinned message not found');
+  }
+
+  const pinned = pinnedResult.rows[0];
+
+  // Verify user has permission to unpin
+  if (pinned.channel_id) {
+    const memberResult = await pool.query(
+      'SELECT role FROM channel_members WHERE channel_id = $1 AND user_id = $2',
+      [pinned.channel_id, userId]
+    );
+
+    if (memberResult.rows.length === 0) {
+      throw new ForbiddenError('Not a member of this channel');
+    }
+
+    const role = memberResult.rows[0].role;
+    if (role !== 'owner' && role !== 'admin') {
+      throw new ForbiddenError('Only channel admins and owners can unpin messages');
+    }
+  } else if (pinned.dm_group_id) {
+    const memberResult = await pool.query(
+      'SELECT id FROM dm_group_members WHERE dm_group_id = $1 AND user_id = $2',
+      [pinned.dm_group_id, userId]
+    );
+
+    if (memberResult.rows.length === 0) {
+      throw new ForbiddenError('Not a member of this DM');
+    }
+  }
+
+  // Unpin the message
+  await pool.query('DELETE FROM pinned_messages WHERE message_id = $1', [messageId]);
+
+  // Emit WebSocket event
+  const roomId = pinned.channel_id || pinned.dm_group_id;
+  io.to(roomId).emit('message-unpinned', { messageId });
+
+  logger.info(`Message ${messageId} unpinned by user ${userId}`);
+
+  res.status(204).send();
+};
+
+export const getPinnedMessages = async (req: AuthRequest, res: Response) => {
+  const { channelId } = req.params;
+  const userId = req.userId!;
+
+  // Verify user is member of channel
+  const memberResult = await pool.query(
+    'SELECT id FROM channel_members WHERE channel_id = $1 AND user_id = $2',
+    [channelId, userId]
+  );
+
+  if (memberResult.rows.length === 0) {
+    throw new ForbiddenError('Not a member of this channel');
+  }
+
+  // Get pinned messages with full message data
+  const result = await pool.query(
+    `SELECT
+      pm.id as pin_id,
+      pm.pinned_by,
+      pm.pinned_at,
+      m.id,
+      m.workspace_id,
+      m.channel_id,
+      m.user_id,
+      m.content,
+      m.message_type,
+      m.metadata,
+      m.parent_message_id,
+      m.is_edited,
+      m.is_deleted,
+      m.reply_count,
+      m.last_reply_at,
+      m.created_at,
+      m.updated_at,
+      u.username,
+      u.display_name,
+      u.avatar_url,
+      pinner.username as pinned_by_username,
+      pinner.display_name as pinned_by_display_name
+    FROM pinned_messages pm
+    JOIN messages m ON pm.message_id = m.id
+    JOIN users u ON m.user_id = u.id
+    JOIN users pinner ON pm.pinned_by = pinner.id
+    WHERE pm.channel_id = $1
+    ORDER BY pm.pinned_at DESC`,
+    [channelId]
+  );
+
+  const pinnedMessages = result.rows.map((row) => ({
+    ...row,
+    user: {
+      id: row.user_id,
+      username: row.username,
+      displayName: row.display_name,
+      avatarUrl: row.avatar_url,
+    },
+    pinnedBy: {
+      id: row.pinned_by,
+      username: row.pinned_by_username,
+      displayName: row.pinned_by_display_name,
+    },
+  }));
+
+  res.json({ pinnedMessages });
+};
+
+export const bookmarkMessage = async (req: AuthRequest, res: Response) => {
+  const { messageId } = req.params;
+  const userId = req.userId!;
+  const { note } = req.body;
+
+  // Get message details
+  const messageResult = await pool.query(
+    'SELECT channel_id, dm_group_id FROM messages WHERE id = $1',
+    [messageId]
+  );
+
+  if (messageResult.rows.length === 0) {
+    throw new NotFoundError('Message not found');
+  }
+
+  const message = messageResult.rows[0];
+
+  // Verify user has access to the message
+  if (message.channel_id) {
+    const memberResult = await pool.query(
+      'SELECT id FROM channel_members WHERE channel_id = $1 AND user_id = $2',
+      [message.channel_id, userId]
+    );
+
+    if (memberResult.rows.length === 0) {
+      throw new ForbiddenError('Not a member of this channel');
+    }
+  } else if (message.dm_group_id) {
+    const memberResult = await pool.query(
+      'SELECT id FROM dm_group_members WHERE dm_group_id = $1 AND user_id = $2',
+      [message.dm_group_id, userId]
+    );
+
+    if (memberResult.rows.length === 0) {
+      throw new ForbiddenError('Not a member of this DM');
+    }
+  }
+
+  // Bookmark the message
+  try {
+    const result = await pool.query(
+      `INSERT INTO bookmarked_messages (user_id, message_id, channel_id, dm_group_id, note)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, user_id, message_id, channel_id, dm_group_id, note, bookmarked_at`,
+      [userId, messageId, message.channel_id, message.dm_group_id, note || null]
+    );
+
+    logger.info(`Message ${messageId} bookmarked by user ${userId}`);
+
+    res.status(201).json({
+      id: result.rows[0].id,
+      userId: result.rows[0].user_id,
+      messageId: result.rows[0].message_id,
+      channelId: result.rows[0].channel_id,
+      dmGroupId: result.rows[0].dm_group_id,
+      note: result.rows[0].note,
+      bookmarkedAt: result.rows[0].bookmarked_at,
+    });
+  } catch (error: any) {
+    if (error.code === '23505') {
+      throw new BadRequestError('Message is already bookmarked');
+    }
+    throw error;
+  }
+};
+
+export const unbookmarkMessage = async (req: AuthRequest, res: Response) => {
+  const { messageId } = req.params;
+  const userId = req.userId!;
+
+  await pool.query(
+    'DELETE FROM bookmarked_messages WHERE message_id = $1 AND user_id = $2',
+    [messageId, userId]
+  );
+
+  logger.info(`Message ${messageId} unbookmarked by user ${userId}`);
+
+  res.status(204).send();
+};
+
+export const getBookmarkedMessages = async (req: AuthRequest, res: Response) => {
+  const { workspaceId } = req.params;
+  const userId = req.userId!;
+
+  // Verify user is member of workspace
+  const memberCheck = await pool.query(
+    'SELECT role FROM workspace_members WHERE workspace_id = $1 AND user_id = $2',
+    [workspaceId, userId]
+  );
+
+  if (memberCheck.rows.length === 0) {
+    throw new ForbiddenError('Not a member of this workspace');
+  }
+
+  // Get bookmarked messages with full message data
+  const result = await pool.query(
+    `SELECT
+      bm.id as bookmark_id,
+      bm.note,
+      bm.bookmarked_at,
+      m.id,
+      m.workspace_id,
+      m.channel_id,
+      m.dm_group_id,
+      m.user_id,
+      m.content,
+      m.message_type,
+      m.metadata,
+      m.parent_message_id,
+      m.is_edited,
+      m.is_deleted,
+      m.reply_count,
+      m.last_reply_at,
+      m.created_at,
+      m.updated_at,
+      u.username,
+      u.display_name,
+      u.avatar_url,
+      c.name as channel_name,
+      c.is_private as channel_is_private
+    FROM bookmarked_messages bm
+    JOIN messages m ON bm.message_id = m.id
+    JOIN users u ON m.user_id = u.id
+    LEFT JOIN channels c ON m.channel_id = c.id
+    WHERE bm.user_id = $1 AND m.workspace_id = $2
+    ORDER BY bm.bookmarked_at DESC`,
+    [userId, workspaceId]
+  );
+
+  const bookmarkedMessages = result.rows.map((row) => ({
+    bookmarkId: row.bookmark_id,
+    note: row.note,
+    bookmarkedAt: row.bookmarked_at,
+    message: {
+      id: row.id,
+      workspaceId: row.workspace_id,
+      channelId: row.channel_id,
+      dmGroupId: row.dm_group_id,
+      userId: row.user_id,
+      content: row.content,
+      messageType: row.message_type,
+      metadata: row.metadata,
+      parentMessageId: row.parent_message_id,
+      isEdited: row.is_edited,
+      isDeleted: row.is_deleted,
+      replyCount: row.reply_count,
+      lastReplyAt: row.last_reply_at,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      user: {
+        id: row.user_id,
+        username: row.username,
+        displayName: row.display_name,
+        avatarUrl: row.avatar_url,
+      },
+      channelName: row.channel_name,
+      channelIsPrivate: row.channel_is_private,
+    },
+  }));
+
+  res.json({ bookmarkedMessages });
 };

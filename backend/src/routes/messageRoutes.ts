@@ -31,6 +31,16 @@ router.delete('/messages/:messageId/reactions', messageController.removeReaction
 // Message threading
 router.get('/:workspaceId/channels/:channelId/messages/:messageId/thread', messageController.getThreadReplies);
 
+// Message pinning
+router.post('/messages/:messageId/pin', messageController.pinMessage);
+router.delete('/messages/:messageId/pin', messageController.unpinMessage);
+router.get('/:workspaceId/channels/:channelId/pinned-messages', messageController.getPinnedMessages);
+
+// Message bookmarking
+router.post('/messages/:messageId/bookmark', messageController.bookmarkMessage);
+router.delete('/messages/:messageId/bookmark', messageController.unbookmarkMessage);
+router.get('/:workspaceId/bookmarked-messages', messageController.getBookmarkedMessages);
+
 // File uploads
 router.post('/:workspaceId/channels/:channelId/messages/upload', upload.array('files', 5), messageController.uploadMessageWithAttachments);
 

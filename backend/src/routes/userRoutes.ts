@@ -19,4 +19,8 @@ router.put('/me/status', userController.setCustomStatus);
 // Set presence
 router.put('/me/presence', userController.setPresence);
 
+// DND settings
+router.get('/me/dnd', userController.getDndSettings);
+router.put('/me/dnd', userController.setDndSettings);
+
 export default router;

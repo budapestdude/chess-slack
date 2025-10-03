@@ -9,8 +9,16 @@ import ChannelView from '../components/ChannelView';
 import DMView from '../components/DMView';
 import CreateChannelModal from '../components/CreateChannelModal';
 import CreateDMModal from '../components/CreateDMModal';
+import ChannelBrowserModal from '../components/ChannelBrowserModal';
+import InviteUserModal from '../components/InviteUserModal';
 import NotificationBell from '../components/NotificationBell';
+import SearchBar from '../components/SearchBar';
+import ChannelSettingsDropdown from '../components/ChannelSettingsDropdown';
 import { dmService, DMGroup } from '../services/dm';
+import { channelService } from '../services/channel';
+import { ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
+import ChannelHeader from '../components/ChannelHeader';
+import toast from 'react-hot-toast';
 
 export default function WorkspacePage() {
   const { workspaceId, channelId, dmGroupId } = useParams();
@@ -20,6 +28,8 @@ export default function WorkspacePage() {
   const { channels, currentChannel } = useSelector((state: RootState) => state.channel);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [showCreateDM, setShowCreateDM] = useState(false);
+  const [showChannelBrowser, setShowChannelBrowser] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
   const [currentDM, setCurrentDM] = useState<DMGroup | null>(null);
 
   useEffect(() => {
@@ -63,6 +73,22 @@ export default function WorkspacePage() {
     loadDM();
   }, [dmGroupId, workspaceId, dispatch]);
 
+  const handleToggleStar = async (channelId: string, isCurrentlyStarred: boolean) => {
+    try {
+      if (isCurrentlyStarred) {
+        await channelService.unstarChannel(workspaceId!, channelId);
+        toast.success('Channel unstarred');
+      } else {
+        await channelService.starChannel(workspaceId!, channelId);
+        toast.success('Channel starred');
+      }
+      dispatch(fetchChannels(workspaceId!));
+    } catch (error) {
+      console.error('Failed to toggle star:', error);
+      toast.error('Failed to update channel');
+    }
+  };
+
   if (!currentWorkspace) {
     return (
       <div className="h-screen flex items-center justify-center">
@@ -79,23 +105,70 @@ export default function WorkspacePage() {
         currentChannel={currentChannel}
         onCreateChannel={() => setShowCreateChannel(true)}
         onCreateDM={() => setShowCreateDM(true)}
+        onBrowseChannels={() => setShowChannelBrowser(true)}
+        onInviteUser={() => setShowInviteModal(true)}
+        onToggleStar={handleToggleStar}
       />
 
       <div className="flex-1 flex flex-col">
-        {/* Header bar with notification bell */}
-        <div className="h-14 border-b border-gray-200 flex items-center justify-end px-6">
-          <NotificationBell />
+        {/* Header bar with channel info, search, and notification bell */}
+        <div className="h-14 border-b border-gray-200 flex items-center justify-between px-6">
+          {/* Left: Channel/DM Info */}
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            {currentChannel ? (
+              <>
+                <ChannelHeader
+                  channel={currentChannel}
+                  workspaceId={workspaceId!}
+                  onChannelUpdated={() => {
+                    dispatch(fetchChannels(workspaceId!));
+                  }}
+                />
+                <ChannelSettingsDropdown
+                  channel={{
+                    id: currentChannel.id,
+                    workspaceId: workspaceId!,
+                    name: currentChannel.name,
+                    description: currentChannel.description,
+                    topic: currentChannel.topic,
+                    isMember: currentChannel.isMember,
+                    userRole: currentChannel.userRole,
+                  }}
+                  onChannelUpdated={() => {
+                    dispatch(fetchChannels(workspaceId!));
+                  }}
+                />
+              </>
+            ) : currentDM ? (
+              <>
+                <ChatBubbleLeftRightIcon className="w-5 h-5 text-gray-600" />
+                <h2 className="text-lg font-semibold">
+                  {currentDM.isGroup
+                    ? currentDM.members.map((m) => m.displayName).join(', ')
+                    : currentDM.members.find((m) => m.id !== currentDM.members[0].id)?.displayName || 'Direct Message'}
+                </h2>
+              </>
+            ) : null}
+          </div>
+
+          {/* Right: Search and Notifications */}
+          <div className="flex items-center gap-4">
+            <SearchBar workspaceId={workspaceId!} />
+            <NotificationBell />
+          </div>
         </div>
 
-        {currentChannel ? (
-          <ChannelView channel={currentChannel} workspaceId={workspaceId!} />
-        ) : currentDM ? (
-          <DMView dmGroup={currentDM} workspaceId={workspaceId!} />
-        ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-xl text-gray-500">Select a channel or direct message to start</div>
-          </div>
-        )}
+        <div className="flex-1 overflow-hidden">
+          {currentChannel ? (
+            <ChannelView channel={currentChannel} workspaceId={workspaceId!} />
+          ) : currentDM ? (
+            <DMView dmGroup={currentDM} workspaceId={workspaceId!} />
+          ) : (
+            <div className="flex h-full items-center justify-center">
+              <div className="text-xl text-gray-500">Select a channel or direct message to start</div>
+            </div>
+          )}
+        </div>
       </div>
 
       {showCreateChannel && (
@@ -109,6 +182,24 @@ export default function WorkspacePage() {
         <CreateDMModal
           workspaceId={workspaceId!}
           onClose={() => setShowCreateDM(false)}
+        />
+      )}
+
+      {showChannelBrowser && (
+        <ChannelBrowserModal
+          isOpen={showChannelBrowser}
+          workspaceId={workspaceId!}
+          onClose={() => setShowChannelBrowser(false)}
+          onChannelJoined={() => {
+            dispatch(fetchChannels(workspaceId!));
+          }}
+        />
+      )}
+
+      {showInviteModal && (
+        <InviteUserModal
+          workspaceId={workspaceId!}
+          onClose={() => setShowInviteModal(false)}
         />
       )}
     </div>

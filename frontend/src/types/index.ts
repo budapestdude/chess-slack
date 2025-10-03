@@ -31,6 +31,9 @@ export interface Channel {
   createdBy: string;
   isMember: boolean;
   userRole?: string;
+  isMuted?: boolean;
+  isStarred?: boolean;
+  memberCount?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -52,6 +55,11 @@ export interface Message {
   reactions?: Reaction[];
   hasAttachments?: boolean;
   attachments?: Attachment[];
+  isPinned?: boolean;
+  pinnedBy?: string;
+  pinnedAt?: string;
+  isBookmarked?: boolean;
+  bookmarkedAt?: string;
   createdAt: string;
   updatedAt: string;
   user?: User;

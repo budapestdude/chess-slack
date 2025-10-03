@@ -26,6 +26,12 @@ export interface SetStatusData {
   statusEmoji?: string;
 }
 
+export interface DndSettings {
+  dndStart?: string; // HH:MM format
+  dndEnd?: string; // HH:MM format
+  timezone?: string;
+}
+
 export const userService = {
   async getUserProfile(userId: string): Promise<UserProfile> {
     const response = await api.get(`/users/${userId}/profile`);
@@ -43,5 +49,15 @@ export const userService = {
 
   async setPresence(status: 'online' | 'away' | 'busy' | 'offline'): Promise<void> {
     await api.put('/users/me/presence', { status });
+  },
+
+  async getDndSettings(): Promise<DndSettings> {
+    const response = await api.get('/users/me/dnd');
+    return response.data;
+  },
+
+  async setDndSettings(data: DndSettings): Promise<DndSettings> {
+    const response = await api.put('/users/me/dnd', data);
+    return response.data;
   },
 };

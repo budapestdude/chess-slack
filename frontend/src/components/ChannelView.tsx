@@ -6,7 +6,9 @@ import { HashtagIcon, LockClosedIcon } from '@heroicons/react/24/outline';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 import ThreadPanel from './ThreadPanel';
+import PinnedMessagesPanel from './PinnedMessagesPanel';
 import { messageService } from '../services/message';
+import { bookmarksService } from '../services/bookmarks';
 import websocketService from '../services/websocket';
 import toast from 'react-hot-toast';
 
@@ -17,6 +19,7 @@ interface ChannelViewProps {
 
 export default function ChannelView({ channel, workspaceId }: ChannelViewProps) {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [pinnedMessages, setPinnedMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const [openThreadId, setOpenThreadId] = useState<string | null>(null);
@@ -38,13 +41,16 @@ export default function ChannelView({ channel, workspaceId }: ChannelViewProps) 
       websocketService.onUserStopTyping(handleUserStopTyping);
       websocketService.onReactionAdded(handleReactionAdded);
       websocketService.onReactionRemoved(handleReactionRemoved);
+      websocketService.onMessagePinned(handleMessagePinned);
+      websocketService.onMessageUnpinned(handleMessageUnpinned);
 
-      // Join channel room and wait for confirmation
-      await websocketService.joinChannel(channel.id);
-      console.log('Channel joined, ready to receive messages');
+      // Join channel room (don't wait for it)
+      websocketService.joinChannel(channel.id);
+      console.log('Joining channel:', channel.id);
 
-      // Fetch initial messages after joining
+      // Fetch initial messages and pinned messages immediately
       loadMessages();
+      loadPinnedMessages();
     };
 
     initializeChannel();
@@ -59,6 +65,8 @@ export default function ChannelView({ channel, workspaceId }: ChannelViewProps) 
       websocketService.offUserStopTyping();
       websocketService.offReactionAdded();
       websocketService.offReactionRemoved();
+      websocketService.offMessagePinned();
+      websocketService.offMessageUnpinned();
     };
   }, [channel.id, token]);
 
@@ -72,6 +80,16 @@ export default function ChannelView({ channel, workspaceId }: ChannelViewProps) 
       toast.error('Failed to load messages');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadPinnedMessages = async () => {
+    try {
+      const data = await messageService.getPinnedMessages(workspaceId, channel.id);
+      setPinnedMessages(data.pinnedMessages);
+    } catch (error: any) {
+      console.error('Failed to load pinned messages:', error);
+      // Don't show error toast for pinned messages, just log it
     }
   };
 
@@ -103,11 +121,12 @@ export default function ChannelView({ channel, workspaceId }: ChannelViewProps) 
     }
   };
 
-  const handleMessageUpdated = (message: Message) => {
-    if (message.channelId === channel.id) {
+  const handleMessageUpdated = (data: { message: Message }) => {
+    if (data.message.channelId === channel.id) {
       setMessages((prev) =>
-        prev.map((m) => (m.id === message.id ? message : m))
+        prev.map((m) => (m.id === data.message.id ? { ...m, ...data.message, isEdited: true } : m))
       );
+      toast.success('Message updated');
     }
   };
 
@@ -217,24 +236,93 @@ export default function ChannelView({ channel, workspaceId }: ChannelViewProps) 
     );
   };
 
+  const handlePinMessage = async (messageId: string) => {
+    try {
+      await messageService.pinMessage(messageId);
+      toast.success('Message pinned');
+      // Message will be updated via WebSocket event
+    } catch (error: any) {
+      console.error('Failed to pin message:', error);
+      toast.error('Failed to pin message');
+      throw error;
+    }
+  };
+
+  const handleUnpinMessage = async (messageId: string) => {
+    try {
+      await messageService.unpinMessage(messageId);
+      toast.success('Message unpinned');
+      // Message will be updated via WebSocket event
+    } catch (error: any) {
+      console.error('Failed to unpin message:', error);
+      toast.error('Failed to unpin message');
+      throw error;
+    }
+  };
+
+  const handleMessagePinned = (data: { messageId: string; message: Message }) => {
+    // Update the message in the messages list
+    setMessages((prev) =>
+      prev.map((m) => (m.id === data.messageId ? { ...m, isPinned: true, pinnedAt: data.message.pinnedAt, pinnedBy: data.message.pinnedBy } : m))
+    );
+    // Add to pinned messages list
+    setPinnedMessages((prev) => {
+      // Avoid duplicates
+      if (prev.some((m) => m.id === data.messageId)) {
+        return prev;
+      }
+      return [...prev, data.message];
+    });
+  };
+
+  const handleMessageUnpinned = (data: { messageId: string }) => {
+    // Update the message in the messages list
+    setMessages((prev) =>
+      prev.map((m) => (m.id === data.messageId ? { ...m, isPinned: false, pinnedAt: undefined, pinnedBy: undefined } : m))
+    );
+    // Remove from pinned messages list
+    setPinnedMessages((prev) => prev.filter((m) => m.id !== data.messageId));
+  };
+
+  const handleBookmarkMessage = async (messageId: string) => {
+    try {
+      await bookmarksService.bookmarkMessage(messageId);
+      toast.success('Message bookmarked');
+      loadMessages(); // Refresh to show bookmark indicator
+    } catch (error: any) {
+      console.error('Failed to bookmark message:', error);
+      toast.error('Failed to bookmark message');
+    }
+  };
+
+  const handleUnbookmarkMessage = async (messageId: string) => {
+    try {
+      await bookmarksService.unbookmarkMessage(messageId);
+      toast.success('Bookmark removed');
+      loadMessages(); // Refresh to remove bookmark indicator
+    } catch (error: any) {
+      console.error('Failed to remove bookmark:', error);
+      toast.error('Failed to remove bookmark');
+    }
+  };
+
   return (
     <div className="flex h-full">
       {/* Main channel area */}
       <div className="flex-1 flex flex-col">
-        {/* Channel header */}
-        <div className="h-14 border-b border-gray-200 flex items-center px-6">
-          <div className="flex items-center gap-2">
-            {channel.isPrivate ? (
-              <LockClosedIcon className="w-5 h-5 text-gray-600" />
-            ) : (
-              <HashtagIcon className="w-5 h-5 text-gray-600" />
-            )}
-            <h2 className="text-lg font-semibold">{channel.name}</h2>
-          </div>
-          {channel.topic && (
-            <span className="ml-4 text-sm text-gray-600 truncate">{channel.topic}</span>
-          )}
-        </div>
+        {/* Pinned Messages Panel */}
+        {pinnedMessages.length > 0 && (
+          <PinnedMessagesPanel
+            pinnedMessages={pinnedMessages}
+            userRole={channel.userRole}
+            onUnpinMessage={handleUnpinMessage}
+            onJumpToMessage={(messageId) => {
+              // Scroll to message in the list
+              const element = document.getElementById(`message-${messageId}`);
+              element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }}
+          />
+        )}
 
         {/* Messages area */}
         <MessageList
@@ -245,6 +333,11 @@ export default function ChannelView({ channel, workspaceId }: ChannelViewProps) 
           onAddReaction={handleAddReaction}
           onRemoveReaction={handleRemoveReaction}
           onOpenThread={setOpenThreadId}
+          onPinMessage={handlePinMessage}
+          onUnpinMessage={handleUnpinMessage}
+          onBookmarkMessage={handleBookmarkMessage}
+          onUnbookmarkMessage={handleUnbookmarkMessage}
+          userRole={channel.userRole}
         />
 
         {/* Typing indicator */}

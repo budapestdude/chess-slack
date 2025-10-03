@@ -8,10 +8,20 @@ interface User {
   status: string;
 }
 
+interface SpecialMention {
+  id: string;
+  username: string;
+  displayName: string;
+  description: string;
+  isSpecial: true;
+}
+
+type MentionItem = User | SpecialMention;
+
 interface MentionAutocompleteProps {
   users: User[];
   position: { top: number; left: number };
-  onSelect: (user: User) => void;
+  onSelect: (user: User | SpecialMention) => void;
   onClose: () => void;
   searchTerm: string;
 }
@@ -26,12 +36,38 @@ export default function MentionAutocomplete({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Filter users based on search term
-  const filteredUsers = users.filter(
-    (user) =>
-      user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.displayName.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Special mentions
+  const specialMentions: SpecialMention[] = [
+    {
+      id: 'channel',
+      username: 'channel',
+      displayName: '@channel',
+      description: 'Notify everyone in this channel',
+      isSpecial: true,
+    },
+    {
+      id: 'here',
+      username: 'here',
+      displayName: '@here',
+      description: 'Notify active members in this channel',
+      isSpecial: true,
+    },
+  ];
+
+  // Combine special mentions and users
+  const allMentions: MentionItem[] = [...specialMentions, ...users];
+
+  // Filter mentions based on search term
+  const filteredMentions = allMentions.filter((mention) => {
+    const searchLower = searchTerm.toLowerCase();
+    if ('isSpecial' in mention) {
+      return mention.username.toLowerCase().includes(searchLower);
+    }
+    return (
+      mention.username.toLowerCase().includes(searchLower) ||
+      mention.displayName.toLowerCase().includes(searchLower)
+    );
+  });
 
   useEffect(() => {
     // Reset selected index when filtered users change

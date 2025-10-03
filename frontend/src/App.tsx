@@ -8,6 +8,10 @@ const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const WorkspacesListPage = lazy(() => import('./pages/WorkspacesListPage'));
 const WorkspacePage = lazy(() => import('./pages/WorkspacePage'));
+const AcceptInvitePage = lazy(() => import('./pages/AcceptInvitePage'));
+const AgentDashboardPage = lazy(() => import('./pages/AgentDashboardPage'));
+const TaskBoardPage = lazy(() => import('./pages/TaskBoardPage'));
+const PersonalTrackerPage = lazy(() => import('./pages/PersonalTrackerPage'));
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token } = useSelector((state: RootState) => state.auth);
@@ -77,6 +81,38 @@ export default function App() {
           element={
             <PrivateRoute>
               <WorkspacePage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/invite/:token"
+          element={
+            <PrivateRoute>
+              <AcceptInvitePage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/workspace/:workspaceId/agents"
+          element={
+            <PrivateRoute>
+              <AgentDashboardPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/workspace/:workspaceId/tasks"
+          element={
+            <PrivateRoute>
+              <TaskBoardPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/workspace/:workspaceId/personal"
+          element={
+            <PrivateRoute>
+              <PersonalTrackerPage />
             </PrivateRoute>
           }
         />

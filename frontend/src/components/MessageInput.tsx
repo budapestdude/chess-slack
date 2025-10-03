@@ -4,6 +4,7 @@ import { PaperAirplaneIcon } from '@heroicons/react/24/solid';
 import { RootState } from '../store';
 import { workspaceService } from '../services/workspace';
 import { attachmentService } from '../services/attachment';
+import { draftService } from '../services/draft';
 import MentionAutocomplete from './MentionAutocomplete';
 import FileUploadButton from './FileUploadButton';
 
@@ -42,7 +43,9 @@ export default function MessageInput({
   const [workspaceMembers, setWorkspaceMembers] = useState<User[]>([]);
   const [mentionStartPos, setMentionStartPos] = useState<number | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [draftStatus, setDraftStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const typingTimeoutRef = useRef<number | null>(null);
+  const draftTimeoutRef = useRef<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { currentWorkspace } = useSelector((state: RootState) => state.workspace);
 
@@ -52,6 +55,50 @@ export default function MessageInput({
       workspaceService.getWorkspaceMembers(currentWorkspace.id).then(setWorkspaceMembers);
     }
   }, [currentWorkspace?.id]);
+
+  // Load draft when channel changes
+  useEffect(() => {
+    const loadDraft = async () => {
+      if (!workspaceId || !channelId) return;
+
+      try {
+        const draft = await draftService.getDraft(workspaceId, channelId);
+        if (draft && draft.content) {
+          setContent(draft.content);
+          setDraftStatus('saved');
+        } else {
+          setContent('');
+          setDraftStatus('idle');
+        }
+      } catch (error) {
+        console.error('Failed to load draft:', error);
+      }
+    };
+
+    loadDraft();
+  }, [workspaceId, channelId]);
+
+  // Auto-save draft
+  const saveDraft = async (text: string) => {
+    if (!text.trim() || !workspaceId || !channelId) {
+      setDraftStatus('idle');
+      return;
+    }
+
+    try {
+      setDraftStatus('saving');
+      await draftService.saveDraft(workspaceId, text, channelId);
+      setDraftStatus('saved');
+
+      // Reset status after 2 seconds
+      setTimeout(() => {
+        setDraftStatus('idle');
+      }, 2000);
+    } catch (error) {
+      console.error('Failed to save draft:', error);
+      setDraftStatus('idle');
+    }
+  };
 
   const getCursorPosition = () => {
     if (!textareaRef.current) return { top: 0, left: 0 };
@@ -103,6 +150,16 @@ export default function MessageInput({
     typingTimeoutRef.current = setTimeout(() => {
       onStopTyping();
     }, 2000);
+
+    // Auto-save draft with debouncing
+    if (draftTimeoutRef.current) {
+      clearTimeout(draftTimeoutRef.current);
+    }
+
+    // Save draft after 2 seconds of inactivity
+    draftTimeoutRef.current = setTimeout(() => {
+      saveDraft(value);
+    }, 2000);
   };
 
   const handleMentionSelect = (user: User) => {
@@ -141,6 +198,10 @@ export default function MessageInput({
       clearTimeout(typingTimeoutRef.current);
     }
 
+    if (draftTimeoutRef.current) {
+      clearTimeout(draftTimeoutRef.current);
+    }
+
     try {
       // If files are selected, use upload endpoint
       if (selectedFiles.length > 0) {
@@ -156,7 +217,17 @@ export default function MessageInput({
         // Otherwise use regular message endpoint
         await onSendMessage(content.trim());
       }
+
+      // Delete draft after successful send
+      try {
+        await draftService.deleteDraftByLocation(workspaceId, channelId);
+      } catch (error) {
+        // Non-critical, ignore
+        console.error('Failed to delete draft:', error);
+      }
+
       setContent('');
+      setDraftStatus('idle');
     } catch (error) {
       console.error('Failed to send message:', error);
     } finally {
@@ -185,6 +256,9 @@ export default function MessageInput({
     return () => {
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
+      }
+      if (draftTimeoutRef.current) {
+        clearTimeout(draftTimeoutRef.current);
       }
       onStopTyping();
     };
@@ -232,9 +306,17 @@ export default function MessageInput({
             {sending ? 'Sending...' : 'Send'}
           </button>
         </div>
-        <p className="text-xs text-gray-500">
-          Press Enter to send, Shift+Enter for new line
-        </p>
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-gray-500">
+            Press Enter to send, Shift+Enter for new line
+          </p>
+          {draftStatus === 'saving' && (
+            <p className="text-xs text-gray-400 italic">Saving draft...</p>
+          )}
+          {draftStatus === 'saved' && (
+            <p className="text-xs text-green-600 italic">Draft saved</p>
+          )}
+        </div>
       </form>
     </div>
   );

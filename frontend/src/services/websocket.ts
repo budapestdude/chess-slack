@@ -185,6 +185,22 @@ class WebSocketService {
     this.socket?.off('user-status-updated');
   }
 
+  onMessagePinned(callback: (data: { messageId: string; message: Message }) => void) {
+    this.socket?.on('message-pinned', callback);
+  }
+
+  onMessageUnpinned(callback: (data: { messageId: string }) => void) {
+    this.socket?.on('message-unpinned', callback);
+  }
+
+  offMessagePinned() {
+    this.socket?.off('message-pinned');
+  }
+
+  offMessageUnpinned() {
+    this.socket?.off('message-unpinned');
+  }
+
   getSocket() {
     return this.socket;
   }

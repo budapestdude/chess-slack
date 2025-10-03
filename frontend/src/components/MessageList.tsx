@@ -10,9 +10,14 @@ interface MessageListProps {
   onAddReaction?: (messageId: string, emoji: string) => Promise<void>;
   onRemoveReaction?: (messageId: string, emoji: string) => Promise<void>;
   onOpenThread?: (messageId: string) => void;
+  onPinMessage?: (messageId: string) => Promise<void>;
+  onUnpinMessage?: (messageId: string) => Promise<void>;
+  onBookmarkMessage?: (messageId: string) => void;
+  onUnbookmarkMessage?: (messageId: string) => void;
+  userRole?: string;
 }
 
-export default function MessageList({ messages, loading, onEditMessage, onDeleteMessage, onAddReaction, onRemoveReaction, onOpenThread }: MessageListProps) {
+export default function MessageList({ messages, loading, onEditMessage, onDeleteMessage, onAddReaction, onRemoveReaction, onOpenThread, onPinMessage, onUnpinMessage, onBookmarkMessage, onUnbookmarkMessage, userRole }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -55,6 +60,11 @@ export default function MessageList({ messages, loading, onEditMessage, onDelete
             onAddReaction={onAddReaction}
             onRemoveReaction={onRemoveReaction}
             onOpenThread={onOpenThread}
+            onPinMessage={onPinMessage}
+            onUnpinMessage={onUnpinMessage}
+            onBookmarkMessage={onBookmarkMessage}
+            onUnbookmarkMessage={onUnbookmarkMessage}
+            userRole={userRole}
           />
         ))}
         <div ref={messagesEndRef} />

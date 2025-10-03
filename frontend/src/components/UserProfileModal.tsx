@@ -15,6 +15,17 @@ interface UserProfileModalProps {
 export default function UserProfileModal({ userId, onClose }: UserProfileModalProps) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    displayName: '',
+    bio: '',
+    timezone: '',
+  });
+  const [statusForm, setStatusForm] = useState({
+    customStatus: '',
+    statusEmoji: '',
+  });
+  const [saving, setSaving] = useState(false);
   const { user: currentUser } = useSelector((state: RootState) => state.auth);
   const isOwnProfile = currentUser?.id === userId;
 
@@ -27,11 +38,48 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
       setLoading(true);
       const data = await userService.getUserProfile(userId);
       setProfile(data);
+      setEditForm({
+        displayName: data.displayName,
+        bio: data.bio || '',
+        timezone: data.timezone || '',
+      });
+      setStatusForm({
+        customStatus: data.customStatus || '',
+        statusEmoji: data.statusEmoji || '',
+      });
     } catch (error) {
       console.error('Failed to load user profile:', error);
       toast.error('Failed to load user profile');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      setSaving(true);
+      const updated = await userService.updateMyProfile(editForm);
+      setProfile(updated);
+      toast.success('Profile updated');
+    } catch (error: any) {
+      console.error('Failed to update profile:', error);
+      toast.error('Failed to update profile');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveStatus = async () => {
+    try {
+      setSaving(true);
+      await userService.setCustomStatus(statusForm);
+      toast.success('Status updated');
+      await loadProfile();
+    } catch (error: any) {
+      console.error('Failed to update status:', error);
+      toast.error('Failed to update status');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -95,34 +143,84 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
             </div>
 
             <div className="flex-1 min-w-0">
-              <h3 className="text-xl font-semibold text-gray-900 truncate">
-                {profile.displayName}
-              </h3>
+              {isOwnProfile && isEditing ? (
+                <input
+                  type="text"
+                  value={editForm.displayName}
+                  onChange={(e) => setEditForm({ ...editForm, displayName: e.target.value })}
+                  className="w-full px-3 py-2 text-lg font-semibold border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="Display name"
+                />
+              ) : (
+                <h3 className="text-xl font-semibold text-gray-900 truncate">
+                  {profile.displayName}
+                </h3>
+              )}
               <p className="text-sm text-gray-500">@{profile.username}</p>
 
-              {profile.customStatus && (
-                <div className="mt-2 flex items-center gap-2 text-sm text-gray-700">
-                  {profile.statusEmoji && <span>{profile.statusEmoji}</span>}
-                  <span>{profile.customStatus}</span>
+              {isOwnProfile && isEditing ? (
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={statusForm.statusEmoji}
+                    onChange={(e) => setStatusForm({ ...statusForm, statusEmoji: e.target.value })}
+                    className="w-16 px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="😊"
+                    maxLength={2}
+                  />
+                  <input
+                    type="text"
+                    value={statusForm.customStatus}
+                    onChange={(e) => setStatusForm({ ...statusForm, customStatus: e.target.value })}
+                    className="flex-1 px-3 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="What's your status?"
+                  />
                 </div>
+              ) : (
+                profile.customStatus && (
+                  <div className="mt-2 flex items-center gap-2 text-sm text-gray-700">
+                    {profile.statusEmoji && <span>{profile.statusEmoji}</span>}
+                    <span>{profile.customStatus}</span>
+                  </div>
+                )
               )}
             </div>
           </div>
 
           {/* Bio */}
-          {profile.bio && (
+          {(profile.bio || (isOwnProfile && isEditing)) && (
             <div>
               <h4 className="text-sm font-semibold text-gray-700 mb-1">About</h4>
-              <p className="text-sm text-gray-600 whitespace-pre-wrap">{profile.bio}</p>
+              {isOwnProfile && isEditing ? (
+                <textarea
+                  value={editForm.bio}
+                  onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+                  rows={3}
+                  placeholder="Tell us about yourself..."
+                />
+              ) : (
+                <p className="text-sm text-gray-600 whitespace-pre-wrap">{profile.bio}</p>
+              )}
             </div>
           )}
 
           {/* Additional info */}
           <div className="space-y-3 border-t border-gray-200 pt-4">
-            {profile.timezone && (
+            {(profile.timezone || (isOwnProfile && isEditing)) && (
               <div>
                 <h4 className="text-sm font-semibold text-gray-700">Local Time</h4>
-                <p className="text-sm text-gray-600">{profile.timezone}</p>
+                {isOwnProfile && isEditing ? (
+                  <input
+                    type="text"
+                    value={editForm.timezone}
+                    onChange={(e) => setEditForm({ ...editForm, timezone: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="America/New_York"
+                  />
+                ) : (
+                  <p className="text-sm text-gray-600">{profile.timezone}</p>
+                )}
               </div>
             )}
 
@@ -153,13 +251,46 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
                 </button>
               </>
             )}
-            {isOwnProfile && (
+            {isOwnProfile && !isEditing && (
               <button
-                onClick={onClose}
+                onClick={() => setIsEditing(true)}
                 className="flex-1 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-md"
               >
                 Edit Profile
               </button>
+            )}
+            {isOwnProfile && isEditing && (
+              <>
+                <button
+                  onClick={async () => {
+                    await handleSaveProfile();
+                    await handleSaveStatus();
+                    setIsEditing(false);
+                  }}
+                  disabled={saving}
+                  className="flex-1 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-md disabled:opacity-50"
+                >
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
+                <button
+                  onClick={() => {
+                    setIsEditing(false);
+                    setEditForm({
+                      displayName: profile?.displayName || '',
+                      bio: profile?.bio || '',
+                      timezone: profile?.timezone || '',
+                    });
+                    setStatusForm({
+                      customStatus: profile?.customStatus || '',
+                      statusEmoji: profile?.statusEmoji || '',
+                    });
+                  }}
+                  disabled={saving}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 border border-gray-300 rounded-md disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </>
             )}
           </div>
         </div>

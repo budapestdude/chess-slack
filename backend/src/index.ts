@@ -16,12 +16,20 @@ import dmRoutes from './routes/dmRoutes';
 import userRoutes from './routes/userRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 import searchRoutes from './routes/searchRoutes';
+import invitationRoutes from './routes/invitationRoutes';
+import draftRoutes from './routes/draftRoutes';
+import uploadRoutes from './routes/uploadRoutes';
+import personalRoutes from './routes/personalRoutes';
+// import agentRoutes from './routes/agentRoutes';
+// import taskRoutes from './routes/taskRoutes';
+// import artifactRoutes from './routes/artifactRoutes';
 import { verifyToken } from './utils/jwt';
 import pool from './database/db';
 import { apiLimiter } from './middleware/rateLimiter';
 import { sanitizeInput } from './middleware/sanitize';
 import { errorHandler } from './middleware/errorHandler';
 import { asyncHandler } from './utils/asyncHandler';
+// import { setupAgentSocketHandlers, setupAgentClientHandlers } from './sockets/agentSocket';
 
 dotenv.config();
 
@@ -31,11 +39,14 @@ const httpServer = createServer(app);
 // Socket.IO setup
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+    origin: process.env.CORS_ORIGIN || ['http://localhost:5173', 'http://localhost:5174'],
     methods: ['GET', 'POST'],
     credentials: true,
   },
 });
+
+// Setup agent WebSocket event broadcasts
+// setupAgentSocketHandlers(io);
 
 // Middleware
 app.use(helmet({
@@ -44,7 +55,7 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       scriptSrc: ["'self'"],
-      imgSrc: ["'self'", 'data:', 'https:', 'http://localhost:3001', 'http://localhost:5173'],
+      imgSrc: ["'self'", 'data:', 'https:', 'http://localhost:3001', 'http://localhost:5173', 'http://localhost:5174'],
       connectSrc: ["'self'", 'http://localhost:3001', 'ws://localhost:3001'],
     },
   },
@@ -56,7 +67,7 @@ app.use(helmet({
   },
 }));
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  origin: process.env.CORS_ORIGIN || ['http://localhost:5173', 'http://localhost:5174'],
   credentials: true,
 }));
 app.use(compression());
@@ -77,10 +88,17 @@ app.get('/health', (_req, res) => {
 logger.info('Router registration order: messageRoutes BEFORE channelRoutes');
 app.use('/api/auth', authRoutes);
 app.use('/api/workspaces', workspaceRoutes);
+// app.use('/api/workspaces', agentRoutes);
+// app.use('/api/workspaces', taskRoutes);
+// app.use('/api/workspaces', artifactRoutes);
 app.use('/api/workspaces', messageRoutes); // Register before channelRoutes to handle download route first
 app.use('/api/workspaces', channelRoutes);
 app.use('/api/workspaces', notificationRoutes);
 app.use('/api/workspaces', searchRoutes);
+app.use('/api/workspaces', invitationRoutes);
+app.use('/api/workspaces', draftRoutes);
+app.use('/api/workspaces', uploadRoutes);
+app.use('/api/personal', personalRoutes);
 app.use('/api/dms', dmRoutes);
 app.use('/api/users', userRoutes);
 
@@ -152,6 +170,9 @@ io.on('connection', async (socket) => {
       });
     });
   }
+
+  // Setup agent-specific WebSocket handlers for this client
+  // setupAgentClientHandlers(socket, userId);
 
   socket.on('join-workspace', async (workspaceId: string) => {
     // Validate input

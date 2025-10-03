@@ -46,4 +46,19 @@ export const messageService = {
   async removeReaction(messageId: string, emoji: string): Promise<void> {
     await api.delete(`/workspaces/messages/${messageId}/reactions?emoji=${emoji}`);
   },
+
+  async pinMessage(messageId: string): Promise<void> {
+    await api.post(`/workspaces/messages/${messageId}/pin`);
+  },
+
+  async unpinMessage(messageId: string): Promise<void> {
+    await api.delete(`/workspaces/messages/${messageId}/pin`);
+  },
+
+  async getPinnedMessages(workspaceId: string, channelId: string): Promise<{ pinnedMessages: Message[] }> {
+    const response = await api.get<{ pinnedMessages: Message[] }>(
+      `/workspaces/${workspaceId}/channels/${channelId}/pinned-messages`
+    );
+    return response.data;
+  },
 };

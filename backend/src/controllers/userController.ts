@@ -176,6 +176,58 @@ export const setPresence = async (req: AuthRequest, res: Response) => {
   res.json({ status });
 };
 
+export const setDndSettings = async (req: AuthRequest, res: Response) => {
+  const userId = req.userId!;
+  const { dndStart, dndEnd, timezone } = req.body;
+
+  // Validate time format (HH:MM)
+  const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+  if (dndStart && !timeRegex.test(dndStart)) {
+    return res.status(400).json({ error: 'Invalid dndStart format. Use HH:MM' });
+  }
+  if (dndEnd && !timeRegex.test(dndEnd)) {
+    return res.status(400).json({ error: 'Invalid dndEnd format. Use HH:MM' });
+  }
+
+  const result = await pool.query(
+    `UPDATE users
+     SET dnd_start = $1,
+         dnd_end = $2,
+         timezone = COALESCE($3, timezone),
+         updated_at = NOW()
+     WHERE id = $4
+     RETURNING id, dnd_start, dnd_end, timezone`,
+    [dndStart || null, dndEnd || null, timezone, userId]
+  );
+
+  const user = result.rows[0];
+
+  logger.info('DND settings updated', { userId, dndStart, dndEnd });
+
+  res.json({
+    dndStart: user.dnd_start,
+    dndEnd: user.dnd_end,
+    timezone: user.timezone,
+  });
+};
+
+export const getDndSettings = async (req: AuthRequest, res: Response) => {
+  const userId = req.userId!;
+
+  const result = await pool.query(
+    'SELECT dnd_start, dnd_end, timezone FROM users WHERE id = $1',
+    [userId]
+  );
+
+  const user = result.rows[0];
+
+  res.json({
+    dndStart: user.dnd_start,
+    dndEnd: user.dnd_end,
+    timezone: user.timezone,
+  });
+};
+
 export const getWorkspaceMembers = async (req: AuthRequest, res: Response) => {
   const { workspaceId } = req.params;
   const userId = req.userId!;

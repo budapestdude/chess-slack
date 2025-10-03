@@ -93,9 +93,12 @@ export const getChannels = async (req: AuthRequest, res: Response) => {
       `SELECT DISTINCT c.id, c.workspace_id, c.name, c.description, c.topic,
               c.is_private, c.is_archived, c.created_by, c.created_at, c.updated_at,
               cm.role as user_role,
-              CASE WHEN cm.user_id IS NOT NULL THEN true ELSE false END as is_member
+              cm.notifications_enabled,
+              CASE WHEN cm.user_id IS NOT NULL THEN true ELSE false END as is_member,
+              CASE WHEN sc.id IS NOT NULL THEN true ELSE false END as is_starred
        FROM channels c
        LEFT JOIN channel_members cm ON c.id = cm.channel_id AND cm.user_id = $2
+       LEFT JOIN starred_channels sc ON c.id = sc.channel_id AND sc.user_id = $2
        WHERE c.workspace_id = $1
          AND (c.is_private = false OR cm.user_id IS NOT NULL)
          AND c.is_archived = false
@@ -114,6 +117,8 @@ export const getChannels = async (req: AuthRequest, res: Response) => {
       createdBy: row.created_by,
       isMember: row.is_member,
       userRole: row.user_role,
+      isMuted: row.is_member ? !row.notifications_enabled : false,
+      isStarred: row.is_starred,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }));
@@ -350,4 +355,192 @@ export const leaveChannel = async (req: AuthRequest, res: Response) => {
     );
 
     res.json({ message: 'Left channel successfully' });
+};
+
+export const muteChannel = async (req: AuthRequest, res: Response) => {
+  const { channelId } = req.params;
+  const userId = req.userId!;
+
+  // Verify user is member of channel
+  const memberCheck = await pool.query(
+    'SELECT id FROM channel_members WHERE channel_id = $1 AND user_id = $2',
+    [channelId, userId]
+  );
+
+  if (memberCheck.rows.length === 0) {
+    throw new ForbiddenError('Not a member of this channel');
+  }
+
+  // Update notifications_enabled to false
+  await pool.query(
+    'UPDATE channel_members SET notifications_enabled = false WHERE channel_id = $1 AND user_id = $2',
+    [channelId, userId]
+  );
+
+  logger.info(`Channel ${channelId} muted by user ${userId}`);
+
+  res.json({ message: 'Channel muted successfully', muted: true });
+};
+
+export const unmuteChannel = async (req: AuthRequest, res: Response) => {
+  const { channelId } = req.params;
+  const userId = req.userId!;
+
+  // Verify user is member of channel
+  const memberCheck = await pool.query(
+    'SELECT id FROM channel_members WHERE channel_id = $1 AND user_id = $2',
+    [channelId, userId]
+  );
+
+  if (memberCheck.rows.length === 0) {
+    throw new ForbiddenError('Not a member of this channel');
+  }
+
+  // Update notifications_enabled to true
+  await pool.query(
+    'UPDATE channel_members SET notifications_enabled = true WHERE channel_id = $1 AND user_id = $2',
+    [channelId, userId]
+  );
+
+  logger.info(`Channel ${channelId} unmuted by user ${userId}`);
+
+  res.json({ message: 'Channel unmuted successfully', muted: false });
+};
+
+export const browseChannels = async (req: AuthRequest, res: Response) => {
+  const { workspaceId } = req.params;
+  const userId = req.userId!;
+
+  // Check if user is member of workspace
+  const memberCheck = await pool.query(
+    'SELECT role FROM workspace_members WHERE workspace_id = $1 AND user_id = $2',
+    [workspaceId, userId]
+  );
+
+  if (memberCheck.rows.length === 0) {
+    throw new ForbiddenError('Not a member of this workspace');
+  }
+
+  // Get ALL channels (public and private user is member of) with member counts
+  const result = await pool.query(
+    `SELECT c.id, c.workspace_id, c.name, c.description, c.topic,
+            c.is_private, c.is_archived, c.created_by, c.created_at, c.updated_at,
+            cm.role as user_role,
+            CASE WHEN cm.user_id IS NOT NULL THEN true ELSE false END as is_member,
+            (SELECT COUNT(*) FROM channel_members WHERE channel_id = c.id) as member_count
+     FROM channels c
+     LEFT JOIN channel_members cm ON c.id = cm.channel_id AND cm.user_id = $2
+     WHERE c.workspace_id = $1
+       AND c.is_archived = false
+     ORDER BY c.is_private ASC, c.name ASC`,
+    [workspaceId, userId]
+  );
+
+  const channels = result.rows.map(row => ({
+    id: row.id,
+    workspaceId: row.workspace_id,
+    name: row.name,
+    description: row.description,
+    topic: row.topic,
+    isPrivate: row.is_private,
+    isArchived: row.is_archived,
+    createdBy: row.created_by,
+    isMember: row.is_member,
+    userRole: row.user_role,
+    memberCount: parseInt(row.member_count),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }));
+
+  res.json({ channels });
+};
+
+export const starChannel = async (req: AuthRequest, res: Response) => {
+  const { channelId } = req.params;
+  const userId = req.userId!;
+
+  // Verify user is member of channel
+  const memberCheck = await pool.query(
+    'SELECT id FROM channel_members WHERE channel_id = $1 AND user_id = $2',
+    [channelId, userId]
+  );
+
+  if (memberCheck.rows.length === 0) {
+    throw new ForbiddenError('Not a member of this channel');
+  }
+
+  // Star the channel
+  try {
+    const result = await pool.query(
+      `INSERT INTO starred_channels (user_id, channel_id)
+       VALUES ($1, $2)
+       RETURNING id, user_id, channel_id, starred_at`,
+      [userId, channelId]
+    );
+
+    logger.info(`Channel ${channelId} starred by user ${userId}`);
+
+    res.status(201).json({
+      id: result.rows[0].id,
+      userId: result.rows[0].user_id,
+      channelId: result.rows[0].channel_id,
+      starredAt: result.rows[0].starred_at,
+    });
+  } catch (error: any) {
+    if (error.code === '23505') {
+      throw new BadRequestError('Channel is already starred');
+    }
+    throw error;
+  }
+};
+
+export const unstarChannel = async (req: AuthRequest, res: Response) => {
+  const { channelId } = req.params;
+  const userId = req.userId!;
+
+  await pool.query(
+    'DELETE FROM starred_channels WHERE channel_id = $1 AND user_id = $2',
+    [channelId, userId]
+  );
+
+  logger.info(`Channel ${channelId} unstarred by user ${userId}`);
+
+  res.status(204).send();
+};
+
+export const getStarredChannels = async (req: AuthRequest, res: Response) => {
+  const { workspaceId } = req.params;
+  const userId = req.userId!;
+
+  // Get starred channels for this user in this workspace
+  const result = await pool.query(
+    `SELECT sc.id as star_id, sc.starred_at,
+            c.id, c.workspace_id, c.name, c.description, c.topic,
+            c.is_private, c.is_archived, c.created_by, c.created_at, c.updated_at,
+            cm.role as user_role
+     FROM starred_channels sc
+     JOIN channels c ON sc.channel_id = c.id
+     LEFT JOIN channel_members cm ON c.id = cm.channel_id AND cm.user_id = $2
+     WHERE sc.user_id = $1 AND c.workspace_id = $2
+     ORDER BY sc.starred_at DESC`,
+    [userId, workspaceId]
+  );
+
+  const starredChannels = result.rows.map(row => ({
+    starId: row.star_id,
+    starredAt: row.starred_at,
+    id: row.id,
+    workspaceId: row.workspace_id,
+    name: row.name,
+    description: row.description,
+    topic: row.topic,
+    isPrivate: row.is_private,
+    isArchived: row.is_archived,
+    createdBy: row.created_by,
+    userRole: row.user_role,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }));
+
+  res.json({ starredChannels });
 };

@@ -37,11 +37,11 @@ export default function DMView({ dmGroup, workspaceId }: DMViewProps) {
       websocketService.onReactionAdded(handleReactionAdded);
       websocketService.onReactionRemoved(handleReactionRemoved);
 
-      // Join DM room
-      await websocketService.joinDM(dmGroup.id);
-      console.log('DM joined, ready to receive messages');
+      // Join DM room (don't wait for it)
+      websocketService.joinDM(dmGroup.id);
+      console.log('Joining DM:', dmGroup.id);
 
-      // Fetch initial messages
+      // Fetch initial messages immediately
       loadMessages();
     };
 
@@ -95,11 +95,12 @@ export default function DMView({ dmGroup, workspaceId }: DMViewProps) {
     }
   };
 
-  const handleMessageUpdated = (message: any) => {
-    if (message.dmGroupId === dmGroup.id) {
+  const handleMessageUpdated = (data: { message: any }) => {
+    if (data.message.dmGroupId === dmGroup.id) {
       setMessages((prev) =>
-        prev.map((m) => (m.id === message.id ? message : m))
+        prev.map((m) => (m.id === data.message.id ? { ...m, ...data.message, isEdited: true } : m))
       );
+      toast.success('Message updated');
     }
   };
 
@@ -203,19 +204,6 @@ export default function DMView({ dmGroup, workspaceId }: DMViewProps) {
     <div className="flex h-full">
       {/* Main DM area */}
       <div className="flex-1 flex flex-col">
-        {/* DM header */}
-        <div className="h-14 border-b border-gray-200 flex items-center px-6">
-          <div className="flex items-center gap-2">
-            <ChatBubbleLeftRightIcon className="w-5 h-5 text-gray-600" />
-            <h2 className="text-lg font-semibold">{getDMDisplayName()}</h2>
-          </div>
-          {dmGroup.isGroup && (
-            <span className="ml-4 text-sm text-gray-600">
-              {dmGroup.members.length} members
-            </span>
-          )}
-        </div>
-
         {/* Messages area */}
         <MessageList
           messages={messages as any}

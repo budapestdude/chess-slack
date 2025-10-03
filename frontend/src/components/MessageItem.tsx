@@ -3,14 +3,16 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { Message } from '../types';
 import { formatDistanceToNow } from 'date-fns';
-import { EllipsisVerticalIcon, PencilIcon, TrashIcon, ChatBubbleLeftIcon } from '@heroicons/react/24/outline';
+import { EllipsisVerticalIcon, PencilIcon, TrashIcon, ChatBubbleLeftIcon, BookmarkIcon } from '@heroicons/react/24/outline';
+import { BookmarkIcon as BookmarkSolidIcon, BookmarkSquareIcon } from '@heroicons/react/24/solid';
 import MessageReactions from './MessageReactions';
 import EmojiPicker from './EmojiPicker';
 import AttachmentDisplay from './AttachmentDisplay';
 import { renderMentions } from '../utils/mentionParser';
 
-// Lazy load ChessMessage to avoid loading chess libraries unless needed
+// Lazy load ChessMessage and UserProfileModal to avoid loading libraries unless needed
 const ChessMessage = lazy(() => import('./ChessMessage'));
+const UserProfileModal = lazy(() => import('./UserProfileModal'));
 
 interface MessageItemProps {
   message: Message;
@@ -19,16 +21,23 @@ interface MessageItemProps {
   onAddReaction?: (messageId: string, emoji: string) => Promise<void>;
   onRemoveReaction?: (messageId: string, emoji: string) => Promise<void>;
   onOpenThread?: (messageId: string) => void;
+  onPinMessage?: (messageId: string) => Promise<void>;
+  onUnpinMessage?: (messageId: string) => Promise<void>;
+  onBookmarkMessage?: (messageId: string) => void;
+  onUnbookmarkMessage?: (messageId: string) => void;
+  userRole?: string;
 }
 
-export default function MessageItem({ message, onEdit, onDelete, onAddReaction, onRemoveReaction, onOpenThread }: MessageItemProps) {
+export default function MessageItem({ message, onEdit, onDelete, onAddReaction, onRemoveReaction, onOpenThread, onPinMessage, onUnpinMessage, onBookmarkMessage, onUnbookmarkMessage, userRole }: MessageItemProps) {
   const { user: currentUser } = useSelector((state: RootState) => state.auth);
   const [showMenu, setShowMenu] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
   const [loading, setLoading] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   const isOwnMessage = currentUser?.id === message.userId;
+  const canPinMessage = userRole === 'admin' || userRole === 'owner';
 
   const getInitials = (name: string) => {
     return name
@@ -87,6 +96,30 @@ export default function MessageItem({ message, onEdit, onDelete, onAddReaction, 
     }
   };
 
+  const handlePinMessage = async () => {
+    setLoading(true);
+    try {
+      await onPinMessage?.(message.id);
+      setShowMenu(false);
+    } catch (error) {
+      console.error('Failed to pin message:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUnpinMessage = async () => {
+    setLoading(true);
+    try {
+      await onUnpinMessage?.(message.id);
+      setShowMenu(false);
+    } catch (error) {
+      console.error('Failed to unpin message:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (message.isDeleted) {
     return (
       <div className="flex gap-3 py-2 px-4 hover:bg-gray-50 text-gray-500 italic">
@@ -97,9 +130,13 @@ export default function MessageItem({ message, onEdit, onDelete, onAddReaction, 
   }
 
   return (
-    <div className="flex gap-3 py-2 px-4 hover:bg-gray-50 group relative">
+    <div id={`message-${message.id}`} className="flex gap-3 py-2 px-4 hover:bg-gray-50 group relative">
       {/* Avatar */}
-      <div className="flex-shrink-0">
+      <button
+        onClick={() => setShowProfileModal(true)}
+        className="flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+        title="View profile"
+      >
         {message.user?.avatarUrl ? (
           <img
             src={message.user.avatarUrl}
@@ -111,7 +148,7 @@ export default function MessageItem({ message, onEdit, onDelete, onAddReaction, 
             {getInitials(message.user?.displayName || message.user?.username || 'U')}
           </div>
         )}
-      </div>
+      </button>
 
       {/* Message Content */}
       <div className="flex-1 min-w-0">
@@ -124,6 +161,15 @@ export default function MessageItem({ message, onEdit, onDelete, onAddReaction, 
           </span>
           {message.isEdited && (
             <span className="text-xs text-gray-500">(edited)</span>
+          )}
+          {message.isPinned && (
+            <span className="text-xs text-amber-600 flex items-center gap-1" title="Pinned message">
+              <BookmarkSolidIcon className="w-3 h-3" />
+              Pinned
+            </span>
+          )}
+          {message.isBookmarked && (
+            <BookmarkSolidIcon className="w-3 h-3 text-blue-500" title="Bookmarked" />
           )}
         </div>
 
@@ -227,9 +273,8 @@ export default function MessageItem({ message, onEdit, onDelete, onAddReaction, 
           {/* Emoji Picker */}
           <EmojiPicker onEmojiSelect={(emoji) => onAddReaction?.(message.id, emoji)} />
 
-          {/* Edit/Delete Menu (only for own messages) */}
-          {isOwnMessage && (
-            <div className="relative">
+          {/* Edit/Delete/Pin/Bookmark Menu */}
+          <div className="relative">
               <button
                 onClick={() => setShowMenu(!showMenu)}
                 className="p-1 hover:bg-gray-200 rounded"
@@ -239,30 +284,91 @@ export default function MessageItem({ message, onEdit, onDelete, onAddReaction, 
               </button>
 
               {showMenu && (
-                <div className="absolute right-0 mt-1 w-32 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-10">
-                  <button
-                    onClick={() => {
-                      setIsEditing(true);
-                      setShowMenu(false);
-                    }}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-                  >
-                    <PencilIcon className="w-4 h-4" />
-                    Edit
-                  </button>
-                  <button
-                    onClick={handleDelete}
-                    disabled={loading}
-                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center gap-2"
-                  >
-                    <TrashIcon className="w-4 h-4" />
-                    Delete
-                  </button>
+                <div className="absolute right-0 mt-1 w-40 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-10">
+                  {isOwnMessage && (
+                    <>
+                      <button
+                        onClick={() => {
+                          setIsEditing(true);
+                          setShowMenu(false);
+                        }}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                      >
+                        <PencilIcon className="w-4 h-4" />
+                        Edit
+                      </button>
+                      <button
+                        onClick={handleDelete}
+                        disabled={loading}
+                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center gap-2"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                        Delete
+                      </button>
+                    </>
+                  )}
+                  {canPinMessage && (
+                    <>
+                      {isOwnMessage && <div className="border-t border-gray-200 my-1" />}
+                      {message.isPinned ? (
+                        <button
+                          onClick={handleUnpinMessage}
+                          disabled={loading}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                        >
+                          <BookmarkSquareIcon className="w-4 h-4" />
+                          Unpin message
+                        </button>
+                      ) : (
+                        <button
+                          onClick={handlePinMessage}
+                          disabled={loading}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                        >
+                          <BookmarkSquareIcon className="w-4 h-4" />
+                          Pin message
+                        </button>
+                      )}
+                    </>
+                  )}
+                  {(isOwnMessage || canPinMessage) && <div className="border-t border-gray-200 my-1" />}
+                  {message.isBookmarked ? (
+                    <button
+                      onClick={() => {
+                        onUnbookmarkMessage?.(message.id);
+                        setShowMenu(false);
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                    >
+                      <BookmarkSolidIcon className="w-4 h-4" />
+                      Remove bookmark
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        onBookmarkMessage?.(message.id);
+                        setShowMenu(false);
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                    >
+                      <BookmarkIcon className="w-4 h-4" />
+                      Bookmark message
+                    </button>
+                  )}
                 </div>
               )}
-            </div>
-          )}
+          </div>
         </div>
+      )}
+
+      {/* User Profile Modal */}
+      {showProfileModal && message.userId && (
+        <Suspense fallback={null}>
+          <UserProfileModal
+            userId={message.userId}
+            onClose={() => setShowProfileModal(false)}
+          />
+        </Suspense>
       )}
     </div>
   );

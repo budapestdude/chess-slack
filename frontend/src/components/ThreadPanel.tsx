@@ -57,10 +57,21 @@ export default function ThreadPanel({
       }
     };
 
+    // Listen for thread-reply event to update parent message reply count
+    const handleThreadReply = (data: { parentMessageId: string; replyCount: number; lastReplyAt: Date }) => {
+      if (data.parentMessageId === messageId) {
+        setParentMessage((prev) =>
+          prev ? { ...prev, replyCount: data.replyCount, lastReplyAt: data.lastReplyAt } : prev
+        );
+      }
+    };
+
     websocketService.onNewMessage(handleNewMessage);
+    websocketService.on('thread-reply', handleThreadReply);
 
     return () => {
       websocketService.offNewMessage();
+      websocketService.off('thread-reply', handleThreadReply);
     };
   }, [messageId]);
 

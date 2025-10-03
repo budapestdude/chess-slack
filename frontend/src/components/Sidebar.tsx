@@ -3,11 +3,14 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useState, useEffect } from 'react';
 import { RootState } from '../store';
 import { Workspace, Channel } from '../types';
-import { PlusIcon, HashtagIcon, LockClosedIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, HashtagIcon, LockClosedIcon, ChatBubbleLeftRightIcon, Cog6ToothIcon, MagnifyingGlassIcon, StarIcon, BellSlashIcon, UserPlusIcon, ArchiveBoxIcon, CpuChipIcon, ClipboardDocumentListIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import clsx from 'clsx';
 import { dmService, DMGroup } from '../services/dm';
 import PresenceIndicator from './PresenceIndicator';
 import StatusSelector from './StatusSelector';
+import WorkspaceSettingsModal from './WorkspaceSettingsModal';
+import ArchivedChannelsModal from './ArchivedChannelsModal';
 
 interface SidebarProps {
   workspace: Workspace;
@@ -15,6 +18,9 @@ interface SidebarProps {
   currentChannel: Channel | null;
   onCreateChannel: () => void;
   onCreateDM: () => void;
+  onBrowseChannels: () => void;
+  onInviteUser?: () => void;
+  onToggleStar: (channelId: string, isCurrentlyStarred: boolean) => void;
 }
 
 export default function Sidebar({
@@ -23,6 +29,9 @@ export default function Sidebar({
   currentChannel,
   onCreateChannel,
   onCreateDM,
+  onBrowseChannels,
+  onInviteUser,
+  onToggleStar,
 }: SidebarProps) {
   const { workspaceId, dmGroupId } = useParams();
   const navigate = useNavigate();
@@ -30,6 +39,8 @@ export default function Sidebar({
   const [dms, setDms] = useState<DMGroup[]>([]);
   const [loadingDMs, setLoadingDMs] = useState(false);
   const [presenceStatus, setPresenceStatus] = useState<'online' | 'away' | 'busy' | 'offline'>('online');
+  const [showWorkspaceSettings, setShowWorkspaceSettings] = useState(false);
+  const [showArchivedChannels, setShowArchivedChannels] = useState(false);
 
   useEffect(() => {
     loadDMs();
@@ -74,14 +85,34 @@ export default function Sidebar({
     <div className="w-64 bg-gray-800 text-white flex flex-col">
       {/* Workspace header */}
       <div className="p-4 border-b border-gray-700">
-        <Link to="/workspaces">
-          <h2 className="text-lg font-bold truncate hover:text-gray-300">
-            {workspace.name}
-          </h2>
-        </Link>
+        <div className="flex items-center justify-between mb-3">
+          <Link to="/workspaces" className="flex-1">
+            <h2 className="text-lg font-bold truncate hover:text-gray-300">
+              {workspace.name}
+            </h2>
+          </Link>
+          <div className="flex gap-1">
+            {onInviteUser && (
+              <button
+                onClick={onInviteUser}
+                className="p-1 hover:bg-gray-700 rounded text-gray-400 hover:text-white transition-colors"
+                title="Invite people"
+              >
+                <UserPlusIcon className="w-5 h-5" />
+              </button>
+            )}
+            <button
+              onClick={() => setShowWorkspaceSettings(true)}
+              className="p-1 hover:bg-gray-700 rounded text-gray-400 hover:text-white transition-colors"
+              title="Workspace settings"
+            >
+              <Cog6ToothIcon className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
 
         {/* Status Selector */}
-        <div className="mt-3">
+        <div>
           <StatusSelector
             currentStatus={presenceStatus}
             onStatusChange={setPresenceStatus}
@@ -89,39 +120,95 @@ export default function Sidebar({
         </div>
       </div>
 
+      {/* Workspace Settings Modal */}
+      {showWorkspaceSettings && (
+        <WorkspaceSettingsModal
+          workspace={workspace}
+          isOpen={showWorkspaceSettings}
+          onClose={() => setShowWorkspaceSettings(false)}
+          onWorkspaceUpdated={() => {
+            // Reload workspace data if needed
+            window.location.reload();
+          }}
+        />
+      )}
+
       {/* Channels section */}
       <div className="flex-1 overflow-y-auto">
         <div className="p-4">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-semibold text-gray-300">Channels</h3>
-            <button
-              onClick={onCreateChannel}
-              className="p-1 hover:bg-gray-700 rounded"
-              title="Create channel"
-            >
-              <PlusIcon className="w-4 h-4" />
-            </button>
+            <div className="flex gap-1">
+              <button
+                onClick={() => setShowArchivedChannels(true)}
+                className="p-1 hover:bg-gray-700 rounded"
+                title="View archived channels"
+              >
+                <ArchiveBoxIcon className="w-4 h-4" />
+              </button>
+              <button
+                onClick={onBrowseChannels}
+                className="p-1 hover:bg-gray-700 rounded"
+                title="Browse channels"
+              >
+                <MagnifyingGlassIcon className="w-4 h-4" />
+              </button>
+              <button
+                onClick={onCreateChannel}
+                className="p-1 hover:bg-gray-700 rounded"
+                title="Create channel"
+              >
+                <PlusIcon className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           <div className="space-y-1">
             {channels
               .filter((c) => !c.isPrivate || c.isMember)
+              .sort((a, b) => {
+                // Starred channels first
+                if (a.isStarred && !b.isStarred) return -1;
+                if (!a.isStarred && b.isStarred) return 1;
+                return 0;
+              })
               .map((channel) => (
-                <button
+                <div
                   key={channel.id}
-                  onClick={() => navigate(`/workspace/${workspaceId}/channel/${channel.id}`)}
                   className={clsx(
-                    'w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700',
+                    'w-full flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-700 group',
                     currentChannel?.id === channel.id && 'bg-gray-700 font-semibold'
                   )}
                 >
-                  {channel.isPrivate ? (
-                    <LockClosedIcon className="w-4 h-4 flex-shrink-0" />
-                  ) : (
-                    <HashtagIcon className="w-4 h-4 flex-shrink-0" />
-                  )}
-                  <span className="truncate text-sm">{channel.name}</span>
-                </button>
+                  <button
+                    onClick={() => navigate(`/workspace/${workspaceId}/channel/${channel.id}`)}
+                    className="flex items-center gap-2 flex-1 min-w-0 text-left"
+                  >
+                    {channel.isPrivate ? (
+                      <LockClosedIcon className="w-4 h-4 flex-shrink-0" />
+                    ) : (
+                      <HashtagIcon className="w-4 h-4 flex-shrink-0" />
+                    )}
+                    <span className="truncate text-sm">{channel.name}</span>
+                    {channel.isMuted && (
+                      <BellSlashIcon className="w-3 h-3 flex-shrink-0 text-gray-500" />
+                    )}
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleStar(channel.id, channel.isStarred || false);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                    title={channel.isStarred ? 'Unstar channel' : 'Star channel'}
+                  >
+                    {channel.isStarred ? (
+                      <StarIconSolid className="w-4 h-4 text-yellow-500" />
+                    ) : (
+                      <StarIcon className="w-4 h-4 text-gray-400 hover:text-yellow-500" />
+                    )}
+                  </button>
+                </div>
               ))}
           </div>
         </div>
@@ -196,7 +283,58 @@ export default function Sidebar({
             </div>
           )}
         </div>
+
+        {/* Personal section */}
+        <div className="p-4 border-t border-gray-700">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold text-gray-300">Personal</h3>
+          </div>
+          <div className="space-y-1">
+            <button
+              onClick={() => navigate(`/workspace/${workspaceId}/personal`)}
+              className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
+            >
+              <CheckCircleIcon className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate text-sm">Habit Tracker</span>
+            </button>
+          </div>
+        </div>
+
+        {/* AI Agents section */}
+        <div className="p-4 border-t border-gray-700">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold text-gray-300">AI Agents</h3>
+          </div>
+          <div className="space-y-1">
+            <button
+              onClick={() => navigate(`/workspace/${workspaceId}/agents`)}
+              className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
+            >
+              <CpuChipIcon className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate text-sm">Agent Dashboard</span>
+            </button>
+            <button
+              onClick={() => navigate(`/workspace/${workspaceId}/tasks`)}
+              className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
+            >
+              <ClipboardDocumentListIcon className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate text-sm">Task Board</span>
+            </button>
+          </div>
+        </div>
       </div>
+
+      {/* Archived Channels Modal */}
+      {showArchivedChannels && (
+        <ArchivedChannelsModal
+          workspaceId={workspace.id}
+          onClose={() => setShowArchivedChannels(false)}
+          onUnarchive={() => {
+            // Refresh channels list
+            window.location.reload();
+          }}
+        />
+      )}
     </div>
   );
 }
