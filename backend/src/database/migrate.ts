@@ -109,7 +109,7 @@ async function runMigrations() {
 runMigrations()
   .then(() => {
     pool.end();
-    process.exit(0);
+    // Don't call process.exit(0) - let it return naturally for shell chaining
   })
   .catch((error) => {
     console.error('Migration failed:', error);
