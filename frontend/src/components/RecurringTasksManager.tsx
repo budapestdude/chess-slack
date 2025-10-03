@@ -10,7 +10,7 @@ import {
 import { PlusIcon, TrashIcon, XMarkIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 
 interface RecurringTasksManagerProps {
-  workspaceId: number;
+  workspaceId: string;
   isOpen: boolean;
   onClose: () => void;
   onTasksGenerated: () => void;
