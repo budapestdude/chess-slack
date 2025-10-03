@@ -14,6 +14,10 @@ COPY . .
 # Build TypeScript to JavaScript
 RUN npm run build
 
+# Copy SQL migration files to dist directory
+RUN mkdir -p dist/database/migrations && \
+    cp -r src/database/migrations/*.sql dist/database/migrations/ 2>/dev/null || true
+
 EXPOSE 3001
 
 CMD ["sh", "-c", "npm run migrate:prod && npm start"]
