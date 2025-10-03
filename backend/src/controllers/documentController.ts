@@ -89,12 +89,21 @@ const restoreVersionSchema = z.object({
 // ============================================
 
 async function checkWorkspaceMembership(workspaceId: string, userId: string): Promise<void> {
+  logger.info('Checking workspace membership', { workspaceId, userId });
+
   const memberCheck = await pool.query(
     'SELECT 1 FROM workspace_members WHERE workspace_id = $1 AND user_id = $2',
     [workspaceId, userId]
   );
 
+  logger.info('Membership check result', {
+    workspaceId,
+    userId,
+    isMember: memberCheck.rows.length > 0
+  });
+
   if (memberCheck.rows.length === 0) {
+    logger.warn('User not a member of workspace', { workspaceId, userId });
     throw new ForbiddenError('Not a member of this workspace');
   }
 }
@@ -218,6 +227,8 @@ export const getDocument = asyncHandler(async (req: AuthRequest, res: Response) 
 export const getWorkspaceDocuments = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { workspaceId } = req.params;
   const userId = req.userId!;
+
+  logger.info('getWorkspaceDocuments called', { workspaceId, userId, query: req.query });
 
   // Check workspace membership
   await checkWorkspaceMembership(workspaceId, userId);
