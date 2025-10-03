@@ -187,7 +187,10 @@ class DocumentService {
   ): Promise<Document[]> {
     try {
       let query = `
-        SELECT DISTINCT d.*
+        SELECT DISTINCT d.*,
+          COALESCE(dc.permission_level,
+            CASE WHEN d.created_by = $2 THEN 'admin' ELSE 'view' END
+          ) as permission_level
         FROM documents d
         LEFT JOIN document_collaborators dc ON d.id = dc.document_id AND dc.user_id = $2
         WHERE d.workspace_id = $1
@@ -217,7 +220,10 @@ class DocumentService {
       query += ' ORDER BY d.created_at DESC';
 
       const result = await pool.query(query, params);
-      return result.rows.map(row => this.mapRowToDocument(row));
+      return result.rows.map(row => ({
+        ...this.mapRowToDocument(row),
+        permissions: row.permission_level,
+      }));
     } catch (error) {
       logger.error('Error getting workspace documents', { error, workspaceId, filters });
       throw new Error(`Failed to get workspace documents: ${error}`);

@@ -174,9 +174,12 @@ export const createDocument = asyncHandler(async (req: AuthRequest, res: Respons
   // Create document
   const document = await documentService.createDocument(workspaceId, createRequest, userId);
 
+  // Fetch with permissions to include user's permission level
+  const documentWithPermissions = await documentService.getDocumentWithPermissions(document.id, userId);
+
   logger.info('Document created via API', { documentId: document.id, workspaceId, userId });
 
-  res.status(201).json(document);
+  res.status(201).json(documentWithPermissions);
 });
 
 /**
@@ -283,9 +286,12 @@ export const updateDocument = asyncHandler(async (req: AuthRequest, res: Respons
   // Update document
   const updatedDocument = await documentService.updateDocument(documentId, updateRequest, userId);
 
+  // Fetch with permissions to include user's permission level
+  const documentWithPermissions = await documentService.getDocumentWithPermissions(documentId, userId);
+
   logger.info('Document updated via API', { documentId, workspaceId, userId });
 
-  res.json(updatedDocument);
+  res.json(documentWithPermissions);
 });
 
 /**

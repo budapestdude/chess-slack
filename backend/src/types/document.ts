@@ -27,6 +27,7 @@ export interface Document {
   updatedAt: Date;
   archivedAt?: Date | null;
   metadata: Record<string, any>;
+  permissions?: PermissionLevel; // User's permission level for this document
 }
 
 export interface CreateDocumentRequest {
