@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useState, useEffect } from 'react';
 import { RootState } from '../store';
 import { Workspace, Channel } from '../types';
-import { PlusIcon, HashtagIcon, LockClosedIcon, ChatBubbleLeftRightIcon, Cog6ToothIcon, MagnifyingGlassIcon, StarIcon, BellSlashIcon, UserPlusIcon, ArchiveBoxIcon, CpuChipIcon, ClipboardDocumentListIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, HashtagIcon, LockClosedIcon, ChatBubbleLeftRightIcon, Cog6ToothIcon, MagnifyingGlassIcon, StarIcon, BellSlashIcon, UserPlusIcon, ArchiveBoxIcon, CpuChipIcon, ClipboardDocumentListIcon, CheckCircleIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import clsx from 'clsx';
 import { dmService, DMGroup } from '../services/dm';
@@ -296,6 +296,22 @@ export default function Sidebar({
             >
               <CheckCircleIcon className="w-4 h-4 flex-shrink-0" />
               <span className="truncate text-sm">Habit Tracker</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Knowledge section */}
+        <div className="p-4 border-t border-gray-700">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold text-gray-300">Knowledge</h3>
+          </div>
+          <div className="space-y-1">
+            <button
+              onClick={() => navigate(`/workspace/${workspaceId}/documents`)}
+              className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
+            >
+              <DocumentTextIcon className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate text-sm">Documents & Wiki</span>
             </button>
           </div>
         </div>

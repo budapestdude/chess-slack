@@ -12,6 +12,7 @@ const AcceptInvitePage = lazy(() => import('./pages/AcceptInvitePage'));
 const AgentDashboardPage = lazy(() => import('./pages/AgentDashboardPage'));
 const TaskBoardPage = lazy(() => import('./pages/TaskBoardPage'));
 const PersonalTrackerPage = lazy(() => import('./pages/PersonalTrackerPage'));
+const DocumentsPage = lazy(() => import('./pages/DocumentsPage'));
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token } = useSelector((state: RootState) => state.auth);
@@ -113,6 +114,14 @@ export default function App() {
           element={
             <PrivateRoute>
               <PersonalTrackerPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/workspace/:workspaceId/documents"
+          element={
+            <PrivateRoute>
+              <DocumentsPage />
             </PrivateRoute>
           }
         />
