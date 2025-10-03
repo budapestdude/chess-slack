@@ -1,6 +1,9 @@
-FROM node:20-alpine
+FROM node:22-alpine
 
 WORKDIR /app
+
+# Install Python and build tools for node-gyp (required by isolated-vm)
+RUN apk add --no-cache python3 make g++
 
 COPY package*.json ./
 
@@ -10,4 +13,4 @@ COPY . .
 
 EXPOSE 3001
 
-CMD ["npm", "run", "dev"]
+CMD ["sh", "-c", "npm run migrate:prod && npm start"]
