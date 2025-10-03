@@ -67,7 +67,7 @@ const createMetricEntrySchema = z.object({
 });
 
 // Helper function to calculate streak
-async function calculateStreak(habitId: number, userId: number): Promise<HabitStats> {
+async function calculateStreak(habitId: number, userId: string): Promise<HabitStats> {
   const client = await pool.connect();
   try {
     // Get all check-ins for this habit ordered by date desc
@@ -144,7 +144,7 @@ async function calculateStreak(habitId: number, userId: number): Promise<HabitSt
 }
 
 // Helper function to check workspace membership
-async function checkWorkspaceMembership(workspaceId: number, userId: string): Promise<void> {
+async function checkWorkspaceMembership(workspaceId: string, userId: string): Promise<void> {
   const memberCheck = await pool.query(
     'SELECT 1 FROM workspace_members WHERE workspace_id = $1 AND user_id = $2',
     [workspaceId, userId]
@@ -158,7 +158,7 @@ async function checkWorkspaceMembership(workspaceId: number, userId: string): Pr
 // Habit Controllers
 export const createHabit = async (req: AuthRequest, res: Response) => {
   try {
-    const workspaceId = parseInt(req.params.workspaceId);
+    const workspaceId = req.params.workspaceId;
     const userId = req.user?.id;
 
     if (!userId) {
@@ -201,7 +201,7 @@ export const createHabit = async (req: AuthRequest, res: Response) => {
 
 export const getHabits = async (req: AuthRequest, res: Response) => {
   try {
-    const workspaceId = parseInt(req.params.workspaceId);
+    const workspaceId = req.params.workspaceId;
     const userId = req.user?.id;
     const includeArchived = req.query.includeArchived === 'true';
 
@@ -358,7 +358,7 @@ export const deleteHabit = async (req: AuthRequest, res: Response) => {
 // Check-in Controllers
 export const createCheckin = async (req: AuthRequest, res: Response) => {
   try {
-    const workspaceId = parseInt(req.params.workspaceId);
+    const workspaceId = req.params.workspaceId;
     const userId = req.user?.id;
 
     if (!userId) {
@@ -427,7 +427,7 @@ export const getCheckins = async (req: AuthRequest, res: Response) => {
 // Personal Task Controllers
 export const createPersonalTask = async (req: AuthRequest, res: Response) => {
   try {
-    const workspaceId = parseInt(req.params.workspaceId);
+    const workspaceId = req.params.workspaceId;
     const userId = req.user?.id;
 
     if (!userId) {
@@ -466,7 +466,7 @@ export const createPersonalTask = async (req: AuthRequest, res: Response) => {
 
 export const getPersonalTasks = async (req: AuthRequest, res: Response) => {
   try {
-    const workspaceId = parseInt(req.params.workspaceId);
+    const workspaceId = req.params.workspaceId;
     const userId = req.user?.id;
     const { status } = req.query;
 
@@ -571,7 +571,7 @@ export const deletePersonalTask = async (req: AuthRequest, res: Response) => {
 // Dashboard stats
 export const getDashboardStats = async (req: AuthRequest, res: Response) => {
   try {
-    const workspaceId = parseInt(req.params.workspaceId);
+    const workspaceId = req.params.workspaceId;
     const userId = req.user?.id;
 
     if (!userId) {
@@ -632,7 +632,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
 // Daily Checklist Controllers
 export const getDailyChecklist = async (req: AuthRequest, res: Response) => {
   try {
-    const workspaceId = parseInt(req.params.workspaceId);
+    const workspaceId = req.params.workspaceId;
     const userId = req.user?.id;
     const { date } = req.query;
 
@@ -658,7 +658,7 @@ export const getDailyChecklist = async (req: AuthRequest, res: Response) => {
 
 export const bulkCreateChecklistItems = async (req: AuthRequest, res: Response) => {
   try {
-    const workspaceId = parseInt(req.params.workspaceId);
+    const workspaceId = req.params.workspaceId;
     const userId = req.user?.id;
     const { items, date } = req.body;
 
@@ -760,7 +760,7 @@ export const deleteChecklistItem = async (req: AuthRequest, res: Response) => {
 
 export const clearCompletedChecklistItems = async (req: AuthRequest, res: Response) => {
   try {
-    const workspaceId = parseInt(req.params.workspaceId);
+    const workspaceId = req.params.workspaceId;
     const userId = req.user?.id;
     const { date } = req.query;
 
@@ -787,7 +787,7 @@ export const clearCompletedChecklistItems = async (req: AuthRequest, res: Respon
 // Recurring Tasks Controllers
 export const getRecurringTasks = async (req: AuthRequest, res: Response) => {
   try {
-    const workspaceId = parseInt(req.params.workspaceId);
+    const workspaceId = req.params.workspaceId;
     const userId = req.user?.id;
 
     if (!userId) {
@@ -810,7 +810,7 @@ export const getRecurringTasks = async (req: AuthRequest, res: Response) => {
 
 export const createRecurringTask = async (req: AuthRequest, res: Response) => {
   try {
-    const workspaceId = parseInt(req.params.workspaceId);
+    const workspaceId = req.params.workspaceId;
     const userId = req.user?.id;
     const { content, frequency, frequency_days, start_date, end_date } = req.body;
 
@@ -934,7 +934,7 @@ export const deleteRecurringTask = async (req: AuthRequest, res: Response) => {
 // Generate daily checklist items from recurring tasks
 export const generateRecurringTasks = async (req: AuthRequest, res: Response) => {
   try {
-    const workspaceId = parseInt(req.params.workspaceId);
+    const workspaceId = req.params.workspaceId;
     const userId = req.user?.id;
     const { date } = req.body;
 
