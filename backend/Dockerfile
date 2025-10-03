@@ -11,6 +11,9 @@ RUN npm install
 
 COPY . .
 
+# Build TypeScript to JavaScript
+RUN npm run build
+
 EXPOSE 3001
 
 CMD ["sh", "-c", "npm run migrate:prod && npm start"]
