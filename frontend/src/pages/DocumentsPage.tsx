@@ -53,7 +53,7 @@ const DocumentsPage: React.FC = () => {
   useEffect(() => {
     if (workspaceId) {
       loadDocuments();
-      loadDocumentTree();
+      // loadDocumentTree(); // TODO: Backend doesn't have tree endpoint yet
     }
   }, [workspaceId, filterType, showFavorites]);
 
@@ -81,13 +81,30 @@ const DocumentsPage: React.FC = () => {
 
       const data = await getDocuments(workspaceId, filters);
       setDocuments(data);
+
+      // Build tree structure from documents
+      const tree = buildTreeFromDocuments(data);
+      setDocumentTree(tree);
     } catch (error) {
       console.error('Error loading documents:', error);
       // Mock data for demo
       setDocuments(getMockDocuments());
+      setDocumentTree(getMockTree());
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const buildTreeFromDocuments = (docs: Document[]): DocumentTreeNode[] => {
+    return docs.map(doc => ({
+      id: doc.id,
+      title: doc.title,
+      type: doc.type,
+      icon: doc.icon,
+      isFavorite: doc.isFavorite,
+      parentId: doc.parentId,
+      children: [],
+    }));
   };
 
   const loadDocumentTree = async () => {
@@ -128,7 +145,8 @@ const DocumentsPage: React.FC = () => {
       });
       setDocuments([...documents, newDoc]);
       setSelectedDocument(newDoc);
-      await loadDocumentTree();
+      // Reload documents list to include the new document
+      await loadDocuments();
     } catch (error) {
       console.error('Error creating document:', error);
     }
