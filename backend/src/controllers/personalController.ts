@@ -1,5 +1,6 @@
-import { Request, Response } from 'express';
-import pool from '../database';
+import { Response } from 'express';
+import { AuthRequest } from '../types';
+import pool from '../database/db';
 import { z } from 'zod';
 import {
   CreateHabitRequest,
@@ -142,8 +143,20 @@ async function calculateStreak(habitId: number, userId: number): Promise<HabitSt
   }
 }
 
+// Helper function to check workspace membership
+async function checkWorkspaceMembership(workspaceId: number, userId: string): Promise<void> {
+  const memberCheck = await pool.query(
+    'SELECT 1 FROM workspace_members WHERE workspace_id = $1 AND user_id = $2',
+    [workspaceId, userId]
+  );
+
+  if (memberCheck.rows.length === 0) {
+    throw new Error('Not a member of this workspace');
+  }
+}
+
 // Habit Controllers
-export const createHabit = async (req: Request, res: Response) => {
+export const createHabit = async (req: AuthRequest, res: Response) => {
   try {
     const workspaceId = parseInt(req.params.workspaceId);
     const userId = req.user?.id;
@@ -186,7 +199,7 @@ export const createHabit = async (req: Request, res: Response) => {
   }
 };
 
-export const getHabits = async (req: Request, res: Response) => {
+export const getHabits = async (req: AuthRequest, res: Response) => {
   try {
     const workspaceId = parseInt(req.params.workspaceId);
     const userId = req.user?.id;
@@ -215,7 +228,7 @@ export const getHabits = async (req: Request, res: Response) => {
 
     // Calculate stats for each habit
     const habitsWithStats: HabitWithStats[] = await Promise.all(
-      result.rows.map(async (habit) => {
+      result.rows.map(async (habit: any) => {
         const stats = await calculateStreak(habit.id, userId);
 
         // Get last check-in
@@ -244,7 +257,7 @@ export const getHabits = async (req: Request, res: Response) => {
   }
 };
 
-export const getHabit = async (req: Request, res: Response) => {
+export const getHabit = async (req: AuthRequest, res: Response) => {
   try {
     const habitId = parseInt(req.params.habitId);
     const userId = req.user?.id;
@@ -271,7 +284,7 @@ export const getHabit = async (req: Request, res: Response) => {
   }
 };
 
-export const updateHabit = async (req: Request, res: Response) => {
+export const updateHabit = async (req: AuthRequest, res: Response) => {
   try {
     const habitId = parseInt(req.params.habitId);
     const userId = req.user?.id;
@@ -317,7 +330,7 @@ export const updateHabit = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteHabit = async (req: Request, res: Response) => {
+export const deleteHabit = async (req: AuthRequest, res: Response) => {
   try {
     const habitId = parseInt(req.params.habitId);
     const userId = req.user?.id;
@@ -343,7 +356,7 @@ export const deleteHabit = async (req: Request, res: Response) => {
 };
 
 // Check-in Controllers
-export const createCheckin = async (req: Request, res: Response) => {
+export const createCheckin = async (req: AuthRequest, res: Response) => {
   try {
     const workspaceId = parseInt(req.params.workspaceId);
     const userId = req.user?.id;
@@ -375,7 +388,7 @@ export const createCheckin = async (req: Request, res: Response) => {
   }
 };
 
-export const getCheckins = async (req: Request, res: Response) => {
+export const getCheckins = async (req: AuthRequest, res: Response) => {
   try {
     const habitId = parseInt(req.params.habitId);
     const userId = req.user?.id;
@@ -412,7 +425,7 @@ export const getCheckins = async (req: Request, res: Response) => {
 };
 
 // Personal Task Controllers
-export const createPersonalTask = async (req: Request, res: Response) => {
+export const createPersonalTask = async (req: AuthRequest, res: Response) => {
   try {
     const workspaceId = parseInt(req.params.workspaceId);
     const userId = req.user?.id;
@@ -451,7 +464,7 @@ export const createPersonalTask = async (req: Request, res: Response) => {
   }
 };
 
-export const getPersonalTasks = async (req: Request, res: Response) => {
+export const getPersonalTasks = async (req: AuthRequest, res: Response) => {
   try {
     const workspaceId = parseInt(req.params.workspaceId);
     const userId = req.user?.id;
@@ -479,7 +492,7 @@ export const getPersonalTasks = async (req: Request, res: Response) => {
   }
 };
 
-export const updatePersonalTask = async (req: Request, res: Response) => {
+export const updatePersonalTask = async (req: AuthRequest, res: Response) => {
   try {
     const taskId = parseInt(req.params.taskId);
     const userId = req.user?.id;
@@ -530,7 +543,7 @@ export const updatePersonalTask = async (req: Request, res: Response) => {
   }
 };
 
-export const deletePersonalTask = async (req: Request, res: Response) => {
+export const deletePersonalTask = async (req: AuthRequest, res: Response) => {
   try {
     const taskId = parseInt(req.params.taskId);
     const userId = req.user?.id;
@@ -556,7 +569,7 @@ export const deletePersonalTask = async (req: Request, res: Response) => {
 };
 
 // Dashboard stats
-export const getDashboardStats = async (req: Request, res: Response) => {
+export const getDashboardStats = async (req: AuthRequest, res: Response) => {
   try {
     const workspaceId = parseInt(req.params.workspaceId);
     const userId = req.user?.id;
@@ -617,7 +630,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 };
 
 // Daily Checklist Controllers
-export const getDailyChecklist = async (req: Request, res: Response) => {
+export const getDailyChecklist = async (req: AuthRequest, res: Response) => {
   try {
     const workspaceId = parseInt(req.params.workspaceId);
     const userId = req.user?.id;
@@ -643,7 +656,7 @@ export const getDailyChecklist = async (req: Request, res: Response) => {
   }
 };
 
-export const bulkCreateChecklistItems = async (req: Request, res: Response) => {
+export const bulkCreateChecklistItems = async (req: AuthRequest, res: Response) => {
   try {
     const workspaceId = parseInt(req.params.workspaceId);
     const userId = req.user?.id;
@@ -681,7 +694,7 @@ export const bulkCreateChecklistItems = async (req: Request, res: Response) => {
     });
 
     const results = await Promise.all(insertPromises);
-    const createdItems = results.map((r) => r.rows[0]);
+    const createdItems = results.map((r: any) => r.rows[0]);
 
     res.status(201).json(createdItems);
   } catch (error) {
@@ -690,7 +703,7 @@ export const bulkCreateChecklistItems = async (req: Request, res: Response) => {
   }
 };
 
-export const toggleChecklistItem = async (req: Request, res: Response) => {
+export const toggleChecklistItem = async (req: AuthRequest, res: Response) => {
   try {
     const itemId = parseInt(req.params.itemId);
     const userId = req.user?.id;
@@ -720,7 +733,7 @@ export const toggleChecklistItem = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteChecklistItem = async (req: Request, res: Response) => {
+export const deleteChecklistItem = async (req: AuthRequest, res: Response) => {
   try {
     const itemId = parseInt(req.params.itemId);
     const userId = req.user?.id;
@@ -745,7 +758,7 @@ export const deleteChecklistItem = async (req: Request, res: Response) => {
   }
 };
 
-export const clearCompletedChecklistItems = async (req: Request, res: Response) => {
+export const clearCompletedChecklistItems = async (req: AuthRequest, res: Response) => {
   try {
     const workspaceId = parseInt(req.params.workspaceId);
     const userId = req.user?.id;
@@ -772,7 +785,7 @@ export const clearCompletedChecklistItems = async (req: Request, res: Response) 
 };
 
 // Recurring Tasks Controllers
-export const getRecurringTasks = async (req: Request, res: Response) => {
+export const getRecurringTasks = async (req: AuthRequest, res: Response) => {
   try {
     const workspaceId = parseInt(req.params.workspaceId);
     const userId = req.user?.id;
@@ -795,7 +808,7 @@ export const getRecurringTasks = async (req: Request, res: Response) => {
   }
 };
 
-export const createRecurringTask = async (req: Request, res: Response) => {
+export const createRecurringTask = async (req: AuthRequest, res: Response) => {
   try {
     const workspaceId = parseInt(req.params.workspaceId);
     const userId = req.user?.id;
@@ -824,7 +837,7 @@ export const createRecurringTask = async (req: Request, res: Response) => {
   }
 };
 
-export const updateRecurringTask = async (req: Request, res: Response) => {
+export const updateRecurringTask = async (req: AuthRequest, res: Response) => {
   try {
     const taskId = parseInt(req.params.taskId);
     const userId = req.user?.id;
@@ -893,7 +906,7 @@ export const updateRecurringTask = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteRecurringTask = async (req: Request, res: Response) => {
+export const deleteRecurringTask = async (req: AuthRequest, res: Response) => {
   try {
     const taskId = parseInt(req.params.taskId);
     const userId = req.user?.id;
@@ -919,7 +932,7 @@ export const deleteRecurringTask = async (req: Request, res: Response) => {
 };
 
 // Generate daily checklist items from recurring tasks
-export const generateRecurringTasks = async (req: Request, res: Response) => {
+export const generateRecurringTasks = async (req: AuthRequest, res: Response) => {
   try {
     const workspaceId = parseInt(req.params.workspaceId);
     const userId = req.user?.id;
@@ -997,7 +1010,7 @@ export const generateRecurringTasks = async (req: Request, res: Response) => {
     });
 
     const results = await Promise.all(insertPromises);
-    const createdItems = results.map((r) => r.rows[0]);
+    const createdItems = results.map((r: any) => r.rows[0]);
 
     res.json({ message: 'Recurring tasks generated', count: createdItems.length, items: createdItems });
   } catch (error) {

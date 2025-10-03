@@ -263,8 +263,11 @@ export const updateDocument = asyncHandler(async (req: AuthRequest, res: Respons
     }
   }
 
-  // Update document request
-  const updateRequest: UpdateDocumentRequest = updates;
+  // Update document request (convert null parentId to undefined for type safety)
+  const updateRequest: UpdateDocumentRequest = {
+    ...updates,
+    parentId: updates.parentId === null ? undefined : updates.parentId,
+  };
 
   // Update document
   const updatedDocument = await documentService.updateDocument(documentId, updateRequest, userId);

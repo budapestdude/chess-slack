@@ -21,13 +21,13 @@ router.post('/:workspaceId/tasks/:taskId/dependencies', authenticateToken, taskC
 
 // Task labels
 router.get('/:workspaceId/tasks/:taskId/labels', authenticateToken, taskController.getTaskLabels);
-router.post('/:workspaceId/tasks/:taskId/labels', authenticateToken, taskController.addLabelToTask);
-router.delete('/:workspaceId/tasks/:taskId/labels/:labelId', authenticateToken, taskController.removeLabelFromTask);
+router.post('/:workspaceId/tasks/:taskId/labels', authenticateToken, taskController.addTaskLabel);
+router.delete('/:workspaceId/tasks/:taskId/labels/:labelId', authenticateToken, taskController.removeTaskLabel);
 
 // Task comments
 router.get('/:workspaceId/tasks/:taskId/comments', authenticateToken, taskController.getTaskComments);
-router.post('/:workspaceId/tasks/:taskId/comments', authenticateToken, taskController.addComment);
-router.put('/:workspaceId/tasks/:taskId/comments/:commentId', authenticateToken, taskController.updateComment);
-router.delete('/:workspaceId/tasks/:taskId/comments/:commentId', authenticateToken, taskController.deleteComment);
+router.post('/:workspaceId/tasks/:taskId/comments', authenticateToken, taskController.addTaskComment);
+router.put('/:workspaceId/tasks/:taskId/comments/:commentId', authenticateToken, taskController.updateTaskComment);
+router.delete('/:workspaceId/tasks/:taskId/comments/:commentId', authenticateToken, taskController.deleteTaskComment);
 
 export default router;

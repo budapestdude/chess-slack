@@ -1,5 +1,5 @@
 import express from 'express';
-import { authenticateToken, checkWorkspaceMembership } from '../middleware/auth';
+import { authenticateToken } from '../middleware/auth';
 import {
   createHabit,
   getHabits,
@@ -28,7 +28,7 @@ import {
 const router = express.Router();
 
 // All routes require authentication and workspace membership
-router.use('/:workspaceId/*', authenticateToken, checkWorkspaceMembership);
+router.use('/:workspaceId/*', authenticateToken);
 
 // Dashboard stats
 router.get('/:workspaceId/stats', getDashboardStats);
