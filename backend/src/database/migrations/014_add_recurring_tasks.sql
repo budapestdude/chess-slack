@@ -45,8 +45,3 @@ ALTER TABLE daily_checklist_items
 ADD COLUMN IF NOT EXISTS recurring_task_id INTEGER REFERENCES recurring_tasks(id) ON DELETE SET NULL;
 
 CREATE INDEX idx_daily_checklist_recurring ON daily_checklist_items(recurring_task_id);
-
--- Add to schema_migrations
-INSERT INTO schema_migrations (version, name, executed_at)
-VALUES (14, '014_add_recurring_tasks', CURRENT_TIMESTAMP)
-ON CONFLICT (version) DO NOTHING;

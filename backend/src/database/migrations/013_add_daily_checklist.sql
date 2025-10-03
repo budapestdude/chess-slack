@@ -36,8 +36,3 @@ CREATE TRIGGER trigger_daily_checklist_updated_at
   BEFORE UPDATE ON daily_checklist_items
   FOR EACH ROW
   EXECUTE FUNCTION update_personal_habits_updated_at();
-
--- Add to schema_migrations
-INSERT INTO schema_migrations (version, name, executed_at)
-VALUES (13, '013_add_daily_checklist', CURRENT_TIMESTAMP)
-ON CONFLICT (version) DO NOTHING;

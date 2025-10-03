@@ -188,8 +188,3 @@ CREATE TRIGGER trigger_metric_entries_updated_at
   BEFORE UPDATE ON personal_metric_entries
   FOR EACH ROW
   EXECUTE FUNCTION update_personal_habits_updated_at();
-
--- Add to schema_migrations
-INSERT INTO schema_migrations (version, name, executed_at)
-VALUES (12, '012_add_personal_tracker', CURRENT_TIMESTAMP)
-ON CONFLICT (version) DO NOTHING;
