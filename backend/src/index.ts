@@ -413,7 +413,7 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 3001;
 
-httpServer.listen(PORT, () => {
+httpServer.listen(PORT, '0.0.0.0', () => {
   logger.info(`Server running on port ${PORT}`);
   logger.info('WebSocket server ready');
 });
