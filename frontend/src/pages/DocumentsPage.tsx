@@ -436,6 +436,10 @@ const DocumentsPage: React.FC = () => {
                 documents.map((d) => (d.id === updatedDoc.id ? updatedDoc : d))
               );
             }}
+            onDelete={() => {
+              setSelectedDocument(null);
+              loadDocuments();
+            }}
           />
         ) : (
           <div className="flex items-center justify-center h-full bg-gradient-to-br from-blue-50 via-white to-purple-50">

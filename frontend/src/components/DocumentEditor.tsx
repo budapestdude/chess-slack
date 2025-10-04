@@ -41,6 +41,7 @@ interface DocumentEditorProps {
   workspaceId: string;
   currentUserId: string;
   onUpdate: (document: Document) => void;
+  onDelete?: () => void;
 }
 
 /**
@@ -53,6 +54,7 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
   workspaceId,
   currentUserId,
   onUpdate,
+  onDelete,
 }) => {
   // State
   const [title, setTitle] = useState(document.title);
@@ -171,9 +173,10 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
     if (confirm('Delete this document permanently? This cannot be undone.')) {
       try {
         await deleteDocument(workspaceId, document.id);
-        // Parent component should handle navigation
+        onDelete?.();
       } catch (error) {
         console.error('Error deleting document:', error);
+        alert('Failed to delete document. Please try again.');
       }
     }
   };
