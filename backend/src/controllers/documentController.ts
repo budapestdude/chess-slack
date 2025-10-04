@@ -179,7 +179,11 @@ export const createDocument = asyncHandler(async (req: AuthRequest, res: Respons
 
   logger.info('Document created via API', { documentId: document.id, workspaceId, userId });
 
-  res.status(201).json(documentWithPermissions);
+  // Return document with permissions field
+  res.status(201).json({
+    ...documentWithPermissions!.document,
+    permissions: documentWithPermissions!.permissionLevel,
+  });
 });
 
 /**
@@ -291,7 +295,11 @@ export const updateDocument = asyncHandler(async (req: AuthRequest, res: Respons
 
   logger.info('Document updated via API', { documentId, workspaceId, userId });
 
-  res.json(documentWithPermissions);
+  // Return document with permissions field
+  res.json({
+    ...documentWithPermissions!.document,
+    permissions: documentWithPermissions!.permissionLevel,
+  });
 });
 
 /**
