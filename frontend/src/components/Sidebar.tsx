@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useState, useEffect } from 'react';
 import { RootState } from '../store';
 import { Workspace, Channel } from '../types';
-import { PlusIcon, HashtagIcon, LockClosedIcon, ChatBubbleLeftRightIcon, Cog6ToothIcon, MagnifyingGlassIcon, StarIcon, BellSlashIcon, UserPlusIcon, ArchiveBoxIcon, CpuChipIcon, ClipboardDocumentListIcon, CheckCircleIcon, DocumentTextIcon, WrenchScrewdriverIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, HashtagIcon, LockClosedIcon, ChatBubbleLeftRightIcon, Cog6ToothIcon, MagnifyingGlassIcon, StarIcon, BellSlashIcon, UserPlusIcon, ArchiveBoxIcon, CpuChipIcon, ClipboardDocumentListIcon, CheckCircleIcon, DocumentTextIcon, WrenchScrewdriverIcon, LightBulbIcon, PencilSquareIcon, ChartBarIcon, DocumentDuplicateIcon } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import clsx from 'clsx';
 import { dmService, DMGroup } from '../services/dm';
@@ -312,6 +312,43 @@ export default function Sidebar({
             >
               <DocumentTextIcon className="w-4 h-4 flex-shrink-0" />
               <span className="truncate text-sm">Documents & Wiki</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Collaboration section */}
+        <div className="p-4 border-t border-gray-700">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold text-gray-300">Collaboration</h3>
+          </div>
+          <div className="space-y-1">
+            <button
+              onClick={() => navigate(`/workspace/${workspaceId}/collaboration?tool=whiteboard`)}
+              className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
+            >
+              <PencilSquareIcon className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate text-sm">Whiteboard</span>
+            </button>
+            <button
+              onClick={() => navigate(`/workspace/${workspaceId}/collaboration?tool=mindmap`)}
+              className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
+            >
+              <LightBulbIcon className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate text-sm">Mind Map</span>
+            </button>
+            <button
+              onClick={() => navigate(`/workspace/${workspaceId}/collaboration?tool=polls`)}
+              className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
+            >
+              <ChartBarIcon className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate text-sm">Polls & Voting</span>
+            </button>
+            <button
+              onClick={() => navigate(`/workspace/${workspaceId}/collaboration?tool=forms`)}
+              className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
+            >
+              <DocumentDuplicateIcon className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate text-sm">Forms Builder</span>
             </button>
           </div>
         </div>
