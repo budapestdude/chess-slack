@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useState, useEffect } from 'react';
 import { RootState } from '../store';
 import { Workspace, Channel } from '../types';
-import { PlusIcon, HashtagIcon, LockClosedIcon, ChatBubbleLeftRightIcon, Cog6ToothIcon, MagnifyingGlassIcon, StarIcon, BellSlashIcon, UserPlusIcon, ArchiveBoxIcon, CpuChipIcon, ClipboardDocumentListIcon, CheckCircleIcon, DocumentTextIcon, WrenchScrewdriverIcon, LightBulbIcon, PencilSquareIcon, ChartBarIcon, DocumentDuplicateIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, HashtagIcon, LockClosedIcon, ChatBubbleLeftRightIcon, Cog6ToothIcon, MagnifyingGlassIcon, StarIcon, BellSlashIcon, UserPlusIcon, ArchiveBoxIcon, CpuChipIcon, ClipboardDocumentListIcon, CheckCircleIcon, DocumentTextIcon, WrenchScrewdriverIcon, LightBulbIcon, PencilSquareIcon, ChartBarIcon, DocumentDuplicateIcon, CalendarIcon, ClockIcon, MegaphoneIcon } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import clsx from 'clsx';
 import { dmService, DMGroup } from '../services/dm';
@@ -349,6 +349,43 @@ export default function Sidebar({
             >
               <DocumentDuplicateIcon className="w-4 h-4 flex-shrink-0" />
               <span className="truncate text-sm">Forms Builder</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Meetings section */}
+        <div className="p-4 border-t border-gray-700">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold text-gray-300">Meetings</h3>
+          </div>
+          <div className="space-y-1">
+            <button
+              onClick={() => navigate(`/workspace/${workspaceId}/meetings?tool=notes`)}
+              className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
+            >
+              <DocumentTextIcon className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate text-sm">Meeting Notes</span>
+            </button>
+            <button
+              onClick={() => navigate(`/workspace/${workspaceId}/meetings?tool=calendar`)}
+              className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
+            >
+              <CalendarIcon className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate text-sm">Calendar</span>
+            </button>
+            <button
+              onClick={() => navigate(`/workspace/${workspaceId}/meetings?tool=standup`)}
+              className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
+            >
+              <MegaphoneIcon className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate text-sm">Standup Bot</span>
+            </button>
+            <button
+              onClick={() => navigate(`/workspace/${workspaceId}/meetings?tool=decisions`)}
+              className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
+            >
+              <LightBulbIcon className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate text-sm">Decision Log</span>
             </button>
           </div>
         </div>
