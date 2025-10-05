@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as userController from '../controllers/userController';
 import { authenticateToken } from '../middleware/auth';
+import { upload } from '../middleware/upload';
 
 const router = Router();
 
@@ -12,6 +13,10 @@ router.get('/:userId/profile', userController.getUserProfile);
 
 // Update my profile
 router.put('/me/profile', userController.updateMyProfile);
+
+// Avatar management
+router.post('/me/avatar', upload.single('avatar'), userController.uploadAvatar);
+router.get('/me/avatar', userController.getAvatar);
 
 // Set custom status
 router.put('/me/status', userController.setCustomStatus);

@@ -60,4 +60,20 @@ export const userService = {
     const response = await api.put('/users/me/dnd', data);
     return response.data;
   },
+
+  async uploadAvatar(file: File): Promise<UserProfile> {
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    const response = await api.post('/users/me/avatar', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  getAvatarUrl(): string {
+    return `/api/users/me/avatar?t=${Date.now()}`;
+  },
 };

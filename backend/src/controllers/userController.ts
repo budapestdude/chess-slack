@@ -1,9 +1,12 @@
 import { Response } from 'express';
+import path from 'path';
+import fs from 'fs/promises';
 import pool from '../database/db';
 import { AuthRequest } from '../types';
 import { io } from '../index';
-import { NotFoundError } from '../errors';
+import { NotFoundError, BadRequestError } from '../errors';
 import logger from '../utils/logger';
+import { validateFileType } from '../middleware/upload';
 
 export const getUserProfile = async (req: AuthRequest, res: Response) => {
   const { userId } = req.params;
@@ -268,4 +271,156 @@ export const getWorkspaceMembers = async (req: AuthRequest, res: Response) => {
   }));
 
   res.json(members);
+};
+
+export const uploadAvatar = async (req: AuthRequest, res: Response) => {
+  const userId = req.userId!;
+  const file = req.file;
+
+  if (!file) {
+    throw new BadRequestError('No file uploaded');
+  }
+
+  // Validate file is an image
+  const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  if (!allowedMimeTypes.includes(file.mimetype)) {
+    // Clean up uploaded file
+    await fs.unlink(file.path).catch(() => {});
+    throw new BadRequestError('Only image files (JPEG, PNG, GIF, WEBP) are allowed');
+  }
+
+  // Validate file type using magic numbers
+  const isValidFileType = await validateFileType(file.path, file.mimetype);
+  if (!isValidFileType) {
+    await fs.unlink(file.path).catch(() => {});
+    logger.warn('Avatar upload rejected - magic number validation failed', {
+      userId,
+      filename: file.originalname,
+      declaredMimeType: file.mimetype
+    });
+    throw new BadRequestError(`File type validation failed for ${file.originalname}. The file content does not match the declared type.`);
+  }
+
+  // Limit file size to 5MB
+  if (file.size > 5 * 1024 * 1024) {
+    await fs.unlink(file.path).catch(() => {});
+    throw new BadRequestError('Avatar file size must be less than 5MB');
+  }
+
+  // Create user-specific avatar directory
+  const avatarDir = path.join('uploads', 'avatars', userId);
+  await fs.mkdir(avatarDir, { recursive: true });
+
+  // Delete old avatar if exists
+  const oldAvatarResult = await pool.query(
+    'SELECT avatar_url FROM users WHERE id = $1',
+    [userId]
+  );
+
+  if (oldAvatarResult.rows[0]?.avatar_url) {
+    const oldAvatarPath = oldAvatarResult.rows[0].avatar_url.replace('/api/users/me/avatar', '');
+    const fullOldPath = path.join(avatarDir, path.basename(oldAvatarPath));
+    await fs.unlink(fullOldPath).catch(() => {
+      logger.debug('Old avatar file not found or already deleted', { path: fullOldPath });
+    });
+  }
+
+  // Move file to avatar directory with unique name
+  const ext = path.extname(file.originalname);
+  const filename = `avatar-${Date.now()}${ext}`;
+  const newPath = path.join(avatarDir, filename);
+  await fs.rename(file.path, newPath);
+
+  // Update user avatar_url in database
+  const avatarUrl = `/api/users/me/avatar?t=${Date.now()}`; // Add timestamp for cache busting
+  const result = await pool.query(
+    `UPDATE users
+     SET avatar_url = $1, updated_at = NOW()
+     WHERE id = $2
+     RETURNING id, username, display_name, avatar_url, custom_status, status_emoji`,
+    [avatarUrl, userId]
+  );
+
+  const user = result.rows[0];
+
+  logger.info('Avatar uploaded', { userId, filename });
+
+  // Broadcast profile update to all workspaces user is in
+  const workspacesResult = await pool.query(
+    'SELECT workspace_id FROM workspace_members WHERE user_id = $1',
+    [userId]
+  );
+
+  workspacesResult.rows.forEach((row) => {
+    io.in(`workspace:${row.workspace_id}`).emit('user-profile-updated', {
+      id: user.id,
+      username: user.username,
+      displayName: user.display_name,
+      avatarUrl: user.avatar_url,
+      customStatus: user.custom_status,
+      statusEmoji: user.status_emoji,
+    });
+  });
+
+  res.json({
+    id: user.id,
+    username: user.username,
+    displayName: user.display_name,
+    avatarUrl: user.avatar_url,
+    customStatus: user.custom_status,
+    statusEmoji: user.status_emoji,
+  });
+};
+
+export const getAvatar = async (req: AuthRequest, res: Response) => {
+  const userId = req.userId!;
+
+  // Get user's avatar path from database
+  const result = await pool.query(
+    'SELECT avatar_url FROM users WHERE id = $1',
+    [userId]
+  );
+
+  if (result.rows.length === 0) {
+    throw new NotFoundError('User not found');
+  }
+
+  const avatarUrl = result.rows[0].avatar_url;
+  if (!avatarUrl) {
+    throw new NotFoundError('Avatar not found');
+  }
+
+  // Find the actual file in the avatar directory
+  const avatarDir = path.join('uploads', 'avatars', userId);
+
+  try {
+    const files = await fs.readdir(avatarDir);
+    const avatarFile = files.find(f => f.startsWith('avatar-'));
+
+    if (!avatarFile) {
+      throw new NotFoundError('Avatar file not found');
+    }
+
+    const avatarPath = path.join(avatarDir, avatarFile);
+
+    // Security: Ensure the path is within avatar directory
+    const resolvedPath = path.resolve(avatarPath);
+    const uploadsDir = path.resolve('uploads');
+
+    if (!resolvedPath.startsWith(uploadsDir)) {
+      logger.error('Path traversal attempt detected in avatar fetch', {
+        userId,
+        resolvedPath
+      });
+      throw new BadRequestError('Access denied');
+    }
+
+    // Send the file
+    res.sendFile(resolvedPath);
+  } catch (error: any) {
+    if (error.code === 'ENOENT') {
+      throw new NotFoundError('Avatar file not found');
+    }
+    throw error;
+  }
 };

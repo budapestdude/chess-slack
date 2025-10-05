@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { userService, UserProfile } from '../services/user';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, CameraIcon } from '@heroicons/react/24/outline';
 import PresenceIndicator from './PresenceIndicator';
 import toast from 'react-hot-toast';
 import { formatDistanceToNow } from 'date-fns';
@@ -26,6 +26,8 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
     statusEmoji: '',
   });
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { user: currentUser } = useSelector((state: RootState) => state.auth);
   const isOwnProfile = currentUser?.id === userId;
 
@@ -83,6 +85,40 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
     }
   };
 
+  const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be smaller than 5MB');
+      return;
+    }
+
+    try {
+      setUploadingAvatar(true);
+      const updated = await userService.uploadAvatar(file);
+      setProfile(updated);
+      toast.success('Profile picture updated');
+
+      // Reset the file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (error: any) {
+      console.error('Failed to upload avatar:', error);
+      toast.error(error.response?.data?.error || 'Failed to upload profile picture');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -125,12 +161,12 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
         <div className="p-6 space-y-6">
           {/* Avatar and basic info */}
           <div className="flex items-start gap-4">
-            <div className="relative">
+            <div className="relative group">
               {profile.avatarUrl ? (
                 <img
                   src={profile.avatarUrl}
                   alt={profile.displayName}
-                  className="w-20 h-20 rounded-lg"
+                  className="w-20 h-20 rounded-lg object-cover"
                 />
               ) : (
                 <div className="w-20 h-20 rounded-lg bg-primary-600 flex items-center justify-center text-white text-2xl font-semibold">
@@ -140,6 +176,32 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
               <div className="absolute -bottom-1 -right-1">
                 <PresenceIndicator status={profile.presenceStatus} size="lg" />
               </div>
+
+              {/* Upload avatar button - only show on own profile */}
+              {isOwnProfile && (
+                <>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingAvatar}
+                    className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 rounded-lg flex items-center justify-center transition-all duration-200 disabled:cursor-not-allowed"
+                    title="Change profile picture"
+                  >
+                    <CameraIcon className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarChange}
+                    className="hidden"
+                  />
+                  {uploadingAvatar && (
+                    <div className="absolute inset-0 bg-black bg-opacity-50 rounded-lg flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
 
             <div className="flex-1 min-w-0">
