@@ -156,7 +156,7 @@ export default function AcceptInvitePage() {
               />
             ) : (
               <span className="text-2xl font-bold text-primary-600">
-                {invitation.workspaceName.charAt(0).toUpperCase()}
+                {invitation.workspaceName?.charAt(0).toUpperCase() || '?'}
               </span>
             )}
           </div>

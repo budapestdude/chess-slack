@@ -217,7 +217,7 @@ export default function SearchBar({ workspaceId }: SearchBarProps) {
                               />
                             ) : (
                               <div className="w-10 h-10 rounded bg-primary-600 flex items-center justify-center text-white font-semibold">
-                                {user.displayName.charAt(0).toUpperCase()}
+                                {user.displayName?.charAt(0).toUpperCase() || '?'}
                               </div>
                             )}
                             <div>
