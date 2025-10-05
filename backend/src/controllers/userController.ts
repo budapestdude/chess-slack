@@ -309,7 +309,12 @@ export const uploadAvatar = async (req: AuthRequest, res: Response) => {
 
   // Create user-specific avatar directory
   const avatarDir = path.join('uploads', 'avatars', userId);
-  await fs.mkdir(avatarDir, { recursive: true });
+  try {
+    await fs.mkdir(avatarDir, { recursive: true });
+  } catch (error: any) {
+    logger.error('Failed to create avatar directory', { avatarDir, error: error.message });
+    throw new BadRequestError('Failed to create avatar directory');
+  }
 
   // Delete old avatar if exists
   const oldAvatarResult = await pool.query(
@@ -329,7 +334,21 @@ export const uploadAvatar = async (req: AuthRequest, res: Response) => {
   const ext = path.extname(file.originalname);
   const filename = `avatar-${Date.now()}${ext}`;
   const newPath = path.join(avatarDir, filename);
-  await fs.rename(file.path, newPath);
+
+  // Use copyFile + unlink instead of rename for cross-filesystem compatibility
+  try {
+    await fs.copyFile(file.path, newPath);
+    logger.debug('Avatar file copied successfully', { from: file.path, to: newPath });
+  } catch (error: any) {
+    logger.error('Failed to copy avatar file', { from: file.path, to: newPath, error: error.message });
+    await fs.unlink(file.path).catch(() => {});
+    throw new BadRequestError('Failed to save avatar file');
+  }
+
+  // Clean up temporary file
+  await fs.unlink(file.path).catch((error) => {
+    logger.debug('Temp file cleanup - file may already be deleted', { path: file.path });
+  });
 
   // Update user avatar_url in database
   const avatarUrl = `/api/users/me/avatar?t=${Date.now()}`; // Add timestamp for cache busting
@@ -343,7 +362,7 @@ export const uploadAvatar = async (req: AuthRequest, res: Response) => {
 
   const user = result.rows[0];
 
-  logger.info('Avatar uploaded', { userId, filename });
+  logger.info('Avatar uploaded successfully', { userId, filename, newPath });
 
   // Broadcast profile update to all workspaces user is in
   const workspacesResult = await pool.query(

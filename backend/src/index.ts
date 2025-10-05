@@ -75,6 +75,16 @@ const app = express();
 const httpServer = createServer(app);
 console.log('✅ App and server created');
 
+// Ensure uploads directory exists
+console.log('📁 Ensuring uploads directory exists...');
+import fs from 'fs';
+if (!fs.existsSync('uploads')) {
+  fs.mkdirSync('uploads', { recursive: true });
+  console.log('✅ Created uploads directory');
+} else {
+  console.log('✅ Uploads directory already exists');
+}
+
 // Parse CORS origins from environment variable (comma-separated) or use defaults
 const corsOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
