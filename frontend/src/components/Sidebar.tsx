@@ -60,11 +60,15 @@ export default function Sidebar({
 
   const getDMDisplayName = (dm: DMGroup) => {
     if (dm.isGroup) {
-      return dm.members.map((m) => m.displayName).join(', ');
+      const names = dm.members
+        .map((m) => m.displayName)
+        .filter(Boolean)
+        .join(', ');
+      return names || 'Group Chat';
     }
     // For 1-on-1, show the other person's name
     const otherMember = dm.members.find((m) => m.id !== currentUser?.id);
-    return otherMember?.displayName || 'Unknown';
+    return otherMember?.displayName || 'Unknown User';
   };
 
   const getOtherMember = (dm: DMGroup) => {
@@ -72,13 +76,16 @@ export default function Sidebar({
     return dm.members.find((m) => m.id !== currentUser?.id);
   };
 
-  const getInitials = (name: string) => {
-    return name
+  const getInitials = (name: string | undefined | null) => {
+    if (!name || typeof name !== 'string') return '?';
+    const initials = name
       .split(' ')
       .map((n) => n[0])
+      .filter(Boolean)
       .join('')
       .toUpperCase()
       .slice(0, 2);
+    return initials || '?';
   };
 
   return (
