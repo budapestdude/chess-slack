@@ -37,11 +37,17 @@ export default function DMView({ dmGroup, workspaceId }: DMViewProps) {
       websocketService.onReactionAdded(handleReactionAdded);
       websocketService.onReactionRemoved(handleReactionRemoved);
 
-      // Join DM room (don't wait for it)
-      websocketService.joinDM(dmGroup.id);
+      // IMPORTANT: Wait for DM join to complete before allowing messages
+      // This prevents race condition where user sends message before socket joins room
       console.log('Joining DM:', dmGroup.id);
+      const joined = await websocketService.joinDM(dmGroup.id);
+      console.log('DM join complete:', dmGroup.id, 'success:', joined);
 
-      // Fetch initial messages immediately
+      if (!joined) {
+        console.error('Failed to join DM room, real-time updates may not work');
+      }
+
+      // Fetch initial messages after joining DM
       loadMessages();
     };
 

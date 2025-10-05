@@ -44,11 +44,17 @@ export default function ChannelView({ channel, workspaceId }: ChannelViewProps) 
       websocketService.onMessagePinned(handleMessagePinned);
       websocketService.onMessageUnpinned(handleMessageUnpinned);
 
-      // Join channel room (don't wait for it)
-      websocketService.joinChannel(channel.id);
+      // IMPORTANT: Wait for channel join to complete before allowing messages
+      // This prevents race condition where user sends message before socket joins room
       console.log('Joining channel:', channel.id);
+      const joined = await websocketService.joinChannel(channel.id);
+      console.log('Channel join complete:', channel.id, 'success:', joined);
 
-      // Fetch initial messages and pinned messages immediately
+      if (!joined) {
+        console.error('Failed to join channel room, real-time updates may not work');
+      }
+
+      // Fetch initial messages and pinned messages after joining channel
       loadMessages();
       loadPinnedMessages();
     };
