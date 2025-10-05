@@ -183,6 +183,27 @@ export const acceptInvitation = async (req: AuthRequest, res: Response) => {
     [invitation.workspace_id, userId, invitation.role]
   );
 
+  // Add user to #general channel automatically
+  const generalChannelResult = await pool.query(
+    `SELECT id FROM channels WHERE workspace_id = $1 AND name = 'general'`,
+    [invitation.workspace_id]
+  );
+
+  if (generalChannelResult.rows.length > 0) {
+    const generalChannelId = generalChannelResult.rows[0].id;
+    await pool.query(
+      `INSERT INTO channel_members (channel_id, user_id, role)
+       VALUES ($1, $2, 'member')
+       ON CONFLICT (channel_id, user_id) DO NOTHING`,
+      [generalChannelId, userId]
+    );
+    logger.info('Added new user to #general channel', {
+      userId,
+      workspaceId: invitation.workspace_id,
+      channelId: generalChannelId,
+    });
+  }
+
   // Update invitation status
   await pool.query(
     'UPDATE workspace_invitations SET status = $1, accepted_at = NOW() WHERE id = $2',
