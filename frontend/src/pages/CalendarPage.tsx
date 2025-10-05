@@ -364,7 +364,7 @@ const CalendarPage: React.FC = () => {
                   `}
                   aria-pressed={view === v}
                 >
-                  {v.charAt(0).toUpperCase() + v.slice(1)}
+                  {v ? v.charAt(0).toUpperCase() + v.slice(1) : ''}
                 </button>
               ))}
             </div>

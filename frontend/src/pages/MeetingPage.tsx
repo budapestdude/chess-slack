@@ -931,7 +931,7 @@ const StandupBotTool: React.FC = () => {
               <div key={response.id} className="bg-white rounded-lg shadow-lg p-6">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center text-white font-semibold">
-                    {response.userName.charAt(0)}
+                    {response.userName?.charAt(0) || '?'}
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900">{response.userName}</h3>
@@ -1197,7 +1197,7 @@ const DecisionLogTool: React.FC = () => {
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="text-xl font-semibold text-gray-900">{decision.title}</h3>
                       <span className={`px-3 py-1 rounded-full text-xs font-medium border ${statusColors[decision.status]}`}>
-                        {decision.status.charAt(0).toUpperCase() + decision.status.slice(1)}
+                        {decision.status ? decision.status.charAt(0).toUpperCase() + decision.status.slice(1) : 'Unknown'}
                       </span>
                     </div>
                     <p className="text-gray-600 mb-2">{decision.description}</p>

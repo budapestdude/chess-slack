@@ -242,7 +242,7 @@ const ShareDocumentModal: React.FC<ShareDocumentModalProps> = ({
                     className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors disabled:opacity-50"
                   >
                     <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
-                      {user.name.charAt(0)}
+                      {user.name?.charAt(0) || '?'}
                     </div>
                     <div className="flex-1 text-left">
                       <div className="text-sm font-medium text-gray-900">{user.name}</div>

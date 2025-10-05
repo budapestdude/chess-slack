@@ -728,7 +728,7 @@ const InvoicingTool: React.FC = () => {
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-xl font-semibold text-gray-900">{invoice.invoiceNumber}</h3>
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[invoice.status]}`}>
-                          {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                          {invoice.status ? invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1) : 'Unknown'}
                         </span>
                       </div>
                       <p className="text-gray-600 mb-2">{invoice.client}</p>
@@ -1192,10 +1192,10 @@ const TimeOffTool: React.FC = () => {
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-lg font-semibold text-gray-900">{request.userName}</h3>
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${typeColors[request.type]}`}>
-                          {request.type.charAt(0).toUpperCase() + request.type.slice(1)}
+                          {request.type ? request.type.charAt(0).toUpperCase() + request.type.slice(1) : 'Unknown'}
                         </span>
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[request.status]}`}>
-                          {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                          {request.status ? request.status.charAt(0).toUpperCase() + request.status.slice(1) : 'Unknown'}
                         </span>
                       </div>
                       <div className="flex gap-6 text-sm text-gray-600 mb-2">
