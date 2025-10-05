@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import {
@@ -15,6 +15,7 @@ import {
   ChevronDown,
   Filter,
   Loader2,
+  ArrowLeft,
 } from 'lucide-react';
 import DocumentEditor from '../components/DocumentEditor';
 import {
@@ -46,6 +47,7 @@ const DocumentsPage: React.FC = () => {
 
   // Get workspaceId from route params and user from Redux store
   const { workspaceId } = useParams<{ workspaceId: string }>();
+  const navigate = useNavigate();
   const { user: currentUser } = useSelector((state: RootState) => state.auth);
   const currentUserId = currentUser?.id || '';
 
@@ -270,6 +272,17 @@ const DocumentsPage: React.FC = () => {
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
       <aside className="w-80 bg-white border-r border-gray-200 flex flex-col overflow-hidden">
+        {/* Back Button */}
+        <div className="p-4 border-b border-gray-200">
+          <button
+            onClick={() => navigate(`/workspace/${workspaceId}`)}
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 font-medium transition-colors text-sm"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Workspace
+          </button>
+        </div>
+
         {/* Search Bar */}
         <div className="p-4 border-b border-gray-200">
           <div className="relative">

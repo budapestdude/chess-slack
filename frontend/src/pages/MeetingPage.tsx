@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Calendar as CalendarIcon,
   MessageSquare,
@@ -14,6 +14,7 @@ import {
   Save,
   Check,
   ArrowRight,
+  ArrowLeft,
   ChevronLeft,
   ChevronRight,
   Video,
@@ -29,6 +30,7 @@ import {
  */
 const MeetingPage: React.FC = () => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [activeToolId, setActiveToolId] = useState<string | null>(null);
 
@@ -95,6 +97,14 @@ const MeetingPage: React.FC = () => {
   return (
     <div className="h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 overflow-y-auto">
       <div className="max-w-6xl mx-auto p-8">
+        <button
+          onClick={() => navigate(`/workspace/${workspaceId}`)}
+          className="mb-6 flex items-center gap-2 text-gray-600 hover:text-gray-900 font-medium transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Workspace
+        </button>
+
         <div className="mb-12">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-green-600 rounded-2xl flex items-center justify-center shadow-lg">

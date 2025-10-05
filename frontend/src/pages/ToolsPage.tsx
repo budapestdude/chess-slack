@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   Calculator,
   Calendar,
@@ -12,6 +12,7 @@ import {
   Copy,
   Check,
   Sparkles,
+  ArrowLeft,
 } from 'lucide-react';
 
 /**
@@ -20,6 +21,7 @@ import {
  */
 const ToolsPage: React.FC = () => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
+  const navigate = useNavigate();
   const [activeToolId, setActiveToolId] = useState<string | null>(null);
 
   const tools = [
@@ -89,6 +91,15 @@ const ToolsPage: React.FC = () => {
   return (
     <div className="h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 overflow-y-auto">
       <div className="max-w-6xl mx-auto p-8">
+        {/* Back Button */}
+        <button
+          onClick={() => navigate(`/workspace/${workspaceId}`)}
+          className="mb-6 flex items-center gap-2 text-gray-600 hover:text-gray-900 font-medium transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Workspace
+        </button>
+
         {/* Header */}
         <div className="mb-12">
           <div className="flex items-center gap-3 mb-4">
