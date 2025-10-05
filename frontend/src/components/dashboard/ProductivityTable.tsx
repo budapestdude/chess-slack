@@ -38,13 +38,16 @@ export default function ProductivityTable({ users, loading = false }: Productivi
     return sortDirection === 'asc' ? aNum - bNum : bNum - aNum;
   });
 
-  const getInitials = (name: string) => {
-    return name
+  const getInitials = (name: string | undefined | null) => {
+    if (!name || typeof name !== 'string') return '?';
+    const initials = name
       .split(' ')
       .map((n) => n[0])
+      .filter(Boolean)
       .join('')
       .toUpperCase()
       .slice(0, 2);
+    return initials || '?';
   };
 
   const getProgressColor = (value: number, max: number) => {

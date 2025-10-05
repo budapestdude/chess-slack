@@ -68,13 +68,16 @@ export default function ActivityFeed({
     return activityIcons[type] || activityIcons.message;
   };
 
-  const getInitials = (name: string) => {
-    return name
+  const getInitials = (name: string | undefined | null) => {
+    if (!name || typeof name !== 'string') return '?';
+    const initials = name
       .split(' ')
       .map((n) => n[0])
+      .filter(Boolean)
       .join('')
       .toUpperCase()
       .slice(0, 2);
+    return initials || '?';
   };
 
   if (loading) {
