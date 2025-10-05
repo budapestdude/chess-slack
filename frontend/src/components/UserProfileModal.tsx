@@ -128,8 +128,15 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
       .slice(0, 2);
   };
 
-  const formatJoinDate = (date: string) => {
-    return formatDistanceToNow(new Date(date), { addSuffix: true });
+  const formatJoinDate = (date: string | undefined) => {
+    if (!date) return 'Unknown';
+    try {
+      const parsedDate = new Date(date);
+      if (isNaN(parsedDate.getTime())) return 'Unknown';
+      return formatDistanceToNow(parsedDate, { addSuffix: true });
+    } catch {
+      return 'Unknown';
+    }
   };
 
   if (loading) {
@@ -295,7 +302,15 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
               <div>
                 <h4 className="text-sm font-semibold text-gray-700">Last Active</h4>
                 <p className="text-sm text-gray-600">
-                  {formatDistanceToNow(new Date(profile.lastActivity), { addSuffix: true })}
+                  {(() => {
+                    try {
+                      const parsedDate = new Date(profile.lastActivity);
+                      if (isNaN(parsedDate.getTime())) return 'Unknown';
+                      return formatDistanceToNow(parsedDate, { addSuffix: true });
+                    } catch {
+                      return 'Unknown';
+                    }
+                  })()}
                 </p>
               </div>
             )}
