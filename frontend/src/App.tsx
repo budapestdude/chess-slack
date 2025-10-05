@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { lazy, Suspense } from 'react';
 import { RootState } from './store';
+import { ChessLoadingState } from './components/ChessEmptyState';
 
 // Lazy load all page components for better code splitting
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -30,8 +31,8 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 // Loading fallback component
 function LoadingSpinner() {
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-amber-50 via-white to-gray-50">
+      <ChessLoadingState text="Loading ChessSlack..." />
     </div>
   );
 }
