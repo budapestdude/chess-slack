@@ -10,6 +10,16 @@ import logger from '../utils/logger';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../errors';
 import { validateFileType } from '../middleware/upload';
 
+// Helper to transform relative avatar URLs to full URLs for cross-origin compatibility
+const getFullAvatarUrl = (avatarUrl: string | null): string | null => {
+  if (!avatarUrl) return null;
+  if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
+    return avatarUrl; // Already a full URL
+  }
+  const baseUrl = process.env.API_BASE_URL || process.env.BACKEND_URL || '';
+  return baseUrl ? `${baseUrl}${avatarUrl}` : avatarUrl;
+};
+
 const createMessageSchema = z.object({
   content: z.string().min(1).max(10000),
   parentMessageId: z.string().uuid().optional(),
@@ -206,7 +216,7 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
         id: row.user_id,
         username: row.username,
         displayName: row.display_name,
-        avatarUrl: row.avatar_url,
+        avatarUrl: getFullAvatarUrl(row.avatar_url),
       },
     }));
 
@@ -423,7 +433,7 @@ export const getThreadReplies = async (req: AuthRequest, res: Response) => {
         id: parentRow.user_id,
         username: parentRow.username,
         displayName: parentRow.display_name,
-        avatarUrl: parentRow.avatar_url,
+        avatarUrl: getFullAvatarUrl(parentRow.avatar_url),
       },
     };
 
@@ -459,7 +469,7 @@ export const getThreadReplies = async (req: AuthRequest, res: Response) => {
         id: row.user_id,
         username: row.username,
         displayName: row.display_name,
-        avatarUrl: row.avatar_url,
+        avatarUrl: getFullAvatarUrl(row.avatar_url),
       },
     }));
 
@@ -864,7 +874,7 @@ export const getPinnedMessages = async (req: AuthRequest, res: Response) => {
       id: row.user_id,
       username: row.username,
       displayName: row.display_name,
-      avatarUrl: row.avatar_url,
+      avatarUrl: getFullAvatarUrl(row.avatar_url),
     },
     pinnedBy: {
       id: row.pinned_by,
@@ -1029,7 +1039,7 @@ export const getBookmarkedMessages = async (req: AuthRequest, res: Response) => 
         id: row.user_id,
         username: row.username,
         displayName: row.display_name,
-        avatarUrl: row.avatar_url,
+        avatarUrl: getFullAvatarUrl(row.avatar_url),
       },
       channelName: row.channel_name,
       channelIsPrivate: row.channel_is_private,
