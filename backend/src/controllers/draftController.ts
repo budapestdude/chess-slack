@@ -146,7 +146,8 @@ export const getDrafts = async (req: AuthRequest, res: Response) => {
 };
 
 export const getDraft = async (req: AuthRequest, res: Response) => {
-  const { workspaceId, channelId, dmGroupId } = req.query;
+  const { workspaceId } = req.params;
+  const { channelId, dmGroupId } = req.query;
   const userId = req.userId!;
 
   if (!channelId && !dmGroupId) {
