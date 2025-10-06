@@ -26,7 +26,9 @@ interface StatusSelectorProps {
 export default function StatusSelector({ currentStatus, onStatusChange }: StatusSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [status, setStatus] = useState<'online' | 'away' | 'busy' | 'offline'>(currentStatus);
+  const [position, setPosition] = useState<'top' | 'bottom'>('top');
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setStatus(currentStatus);
@@ -46,6 +48,19 @@ export default function StatusSelector({ currentStatus, onStatusChange }: Status
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
+  }, [isOpen]);
+
+  // Determine best position when dropdown opens
+  useEffect(() => {
+    if (isOpen && buttonRef.current) {
+      const buttonRect = buttonRef.current.getBoundingClientRect();
+      const dropdownHeight = 220; // Approximate height of dropdown
+      const spaceAbove = buttonRect.top;
+      const spaceBelow = window.innerHeight - buttonRect.bottom;
+
+      // Show below if not enough space above, or if more space below
+      setPosition(spaceAbove < dropdownHeight && spaceBelow > spaceAbove ? 'bottom' : 'top');
+    }
   }, [isOpen]);
 
   const handleStatusChange = async (newStatus: 'online' | 'away' | 'busy' | 'offline') => {
@@ -76,6 +91,7 @@ export default function StatusSelector({ currentStatus, onStatusChange }: Status
   return (
     <div className="relative" ref={dropdownRef}>
       <button
+        ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100 transition-colors"
       >
@@ -85,7 +101,11 @@ export default function StatusSelector({ currentStatus, onStatusChange }: Status
       </button>
 
       {isOpen && (
-        <div className="absolute bottom-full left-0 mb-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+        <div
+          className={`absolute left-0 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50 ${
+            position === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'
+          }`}
+        >
           <div className="px-3 py-2 border-b border-gray-200">
             <h3 className="text-sm font-semibold text-gray-900">Set your status</h3>
           </div>
