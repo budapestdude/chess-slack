@@ -476,6 +476,8 @@ const MindMapTool: React.FC = () => {
   const [connectionStyle, setConnectionStyle] = useState<ConnectionStyle>('curved');
   const [showDesignPanel, setShowDesignPanel] = useState(false);
   const [showGrid, setShowGrid] = useState(true);
+  const [connectionMode, setConnectionMode] = useState(false);
+  const [connectingFromId, setConnectingFromId] = useState<string | null>(null);
 
   const theme = themes[currentTheme];
   const colors = theme.colors;
@@ -518,6 +520,47 @@ const MindMapTool: React.FC = () => {
 
   const updateNodeSize = (nodeId: string, fontSize: number) => {
     setNodes(nodes.map(n => n.id === nodeId ? { ...n, fontSize } : n));
+  };
+
+  const connectNodes = (fromId: string, toId: string) => {
+    if (fromId === toId) return; // Can't connect to self
+
+    const fromNode = nodes.find(n => n.id === fromId);
+    if (!fromNode) return;
+
+    // Check if connection already exists
+    if (fromNode.children.includes(toId)) return;
+
+    // Add connection
+    setNodes(nodes.map(n =>
+      n.id === fromId
+        ? { ...n, children: [...n.children, toId] }
+        : n
+    ));
+  };
+
+  const removeConnection = (fromId: string, toId: string) => {
+    setNodes(nodes.map(n =>
+      n.id === fromId
+        ? { ...n, children: n.children.filter(id => id !== toId) }
+        : n
+    ));
+  };
+
+  const handleNodeClick = (nodeId: string) => {
+    if (connectionMode) {
+      if (!connectingFromId) {
+        // First node selected
+        setConnectingFromId(nodeId);
+      } else {
+        // Second node selected - create connection
+        connectNodes(connectingFromId, nodeId);
+        setConnectingFromId(null);
+        setConnectionMode(false);
+      }
+    } else {
+      setSelectedNodeId(nodeId);
+    }
   };
 
   const deleteNode = (nodeId: string) => {
@@ -644,14 +687,32 @@ const MindMapTool: React.FC = () => {
         backgroundSize: showGrid ? '20px 20px' : 'auto'
       }}
     >
-      {/* Design Panel Toggle */}
-      <button
-        onClick={() => setShowDesignPanel(!showDesignPanel)}
-        className="absolute top-4 right-4 z-20 px-4 py-2 bg-white rounded-lg shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
-      >
-        <Sparkles className="w-5 h-5 text-purple-600" />
-        <span className="font-medium">Design</span>
-      </button>
+      {/* Toolbar */}
+      <div className="absolute top-4 right-4 z-20 flex gap-2">
+        <button
+          onClick={() => {
+            setConnectionMode(!connectionMode);
+            setConnectingFromId(null);
+          }}
+          className={`px-4 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all flex items-center gap-2 ${
+            connectionMode
+              ? 'bg-blue-600 text-white'
+              : 'bg-white text-gray-900'
+          }`}
+        >
+          <GitBranch className="w-5 h-5" />
+          <span className="font-medium">
+            {connectionMode ? (connectingFromId ? 'Select Target' : 'Select Source') : 'Connect'}
+          </span>
+        </button>
+        <button
+          onClick={() => setShowDesignPanel(!showDesignPanel)}
+          className="px-4 py-2 bg-white rounded-lg shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
+        >
+          <Sparkles className="w-5 h-5 text-purple-600" />
+          <span className="font-medium">Design</span>
+        </button>
+      </div>
 
       {/* Design Panel */}
       {showDesignPanel && (
@@ -796,6 +857,8 @@ const MindMapTool: React.FC = () => {
       {/* Nodes */}
       {nodes.map(node => {
         const isDiamond = node.shape === 'diamond';
+        const isConnecting = connectingFromId === node.id;
+        const isSelected = selectedNodeId === node.id;
         return (
           <div
             key={node.id}
@@ -803,26 +866,40 @@ const MindMapTool: React.FC = () => {
               position: 'absolute',
               left: node.x,
               top: node.y,
-              zIndex: selectedNodeId === node.id ? 20 : 10
+              zIndex: isSelected || isConnecting ? 20 : 10
             }}
             onMouseDown={(e) => {
               e.stopPropagation();
-              setSelectedNodeId(node.id);
+              if (!connectionMode) {
+                setSelectedNodeId(node.id);
+              }
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (connectionMode) {
+                handleNodeClick(node.id);
+              }
             }}
           >
             <div
               className={`
-                bg-white shadow-2xl p-4 cursor-move
-                border-4 transition-all
+                bg-white shadow-2xl p-4 transition-all
+                border-4
                 ${getNodeShapeStyles(node.shape)}
-                ${selectedNodeId === node.id ? 'scale-110 shadow-purple-300' : ''}
+                ${connectionMode ? 'cursor-pointer hover:scale-105' : 'cursor-move'}
+                ${isSelected ? 'scale-110 shadow-purple-300' : ''}
+                ${isConnecting ? 'scale-110 animate-pulse shadow-blue-500' : ''}
               `}
               style={{
-                borderColor: selectedNodeId === node.id ? '#8B5CF6' : node.color,
+                borderColor: isConnecting ? '#3B82F6' : (isSelected ? '#8B5CF6' : node.color),
                 fontSize: `${node.fontSize || 14}px`
               }}
-              onMouseDown={(e) => handleMouseDown(e, node.id)}
-              onDoubleClick={() => setEditingNodeId(node.id)}
+              onMouseDown={(e) => {
+                if (!connectionMode) {
+                  handleMouseDown(e, node.id);
+                }
+              }}
+              onDoubleClick={() => !connectionMode && setEditingNodeId(node.id)}
             >
               <div className={isDiamond ? 'transform -rotate-45' : ''}>
                 {editingNodeId === node.id ? (
@@ -841,24 +918,52 @@ const MindMapTool: React.FC = () => {
                   </div>
                 )}
 
-                {selectedNodeId === node.id && !editingNodeId && (
-                  <div className="flex gap-2 mt-3">
-                    <button
-                      onClick={() => addChildNode(node.id)}
-                      className="flex-1 px-2 py-1.5 text-white rounded-lg text-xs hover:opacity-90 shadow-lg transition-all"
-                      style={{ backgroundColor: node.color }}
-                    >
-                      <Plus className="w-4 h-4 mx-auto" />
-                    </button>
-                    {node.id !== '1' && (
+                {selectedNodeId === node.id && !editingNodeId && !connectionMode && (
+                  <>
+                    <div className="flex gap-2 mt-3">
                       <button
-                        onClick={() => deleteNode(node.id)}
-                        className="flex-1 px-2 py-1.5 bg-red-500 text-white rounded-lg text-xs hover:bg-red-600 shadow-lg transition-all"
+                        onClick={() => addChildNode(node.id)}
+                        className="flex-1 px-2 py-1.5 text-white rounded-lg text-xs hover:opacity-90 shadow-lg transition-all"
+                        style={{ backgroundColor: node.color }}
                       >
-                        <Trash2 className="w-4 h-4 mx-auto" />
+                        <Plus className="w-4 h-4 mx-auto" />
                       </button>
+                      {node.id !== '1' && (
+                        <button
+                          onClick={() => deleteNode(node.id)}
+                          className="flex-1 px-2 py-1.5 bg-red-500 text-white rounded-lg text-xs hover:bg-red-600 shadow-lg transition-all"
+                        >
+                          <Trash2 className="w-4 h-4 mx-auto" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Show connections */}
+                    {node.children.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        <div className="text-xs font-semibold text-gray-600 mb-2">
+                          Connected to:
+                        </div>
+                        <div className="space-y-1">
+                          {node.children.map(childId => {
+                            const childNode = nodes.find(n => n.id === childId);
+                            return (
+                              <div key={childId} className="flex items-center justify-between bg-gray-50 px-2 py-1 rounded text-xs">
+                                <span className="truncate flex-1">{childNode?.text || 'Unknown'}</span>
+                                <button
+                                  onClick={() => removeConnection(node.id, childId)}
+                                  className="ml-2 text-red-500 hover:text-red-700"
+                                  title="Remove connection"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
                     )}
-                  </div>
+                  </>
                 )}
               </div>
             </div>
