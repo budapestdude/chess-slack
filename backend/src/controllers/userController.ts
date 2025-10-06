@@ -325,14 +325,14 @@ export const uploadAvatar = async (req: AuthRequest, res: Response) => {
   const ext = path.extname(file.originalname);
   const storageKey = `avatars/${userId}/avatar-${Date.now()}${ext}`;
 
-  let avatarUrl: string;
+  let storageUrl: string;
   try {
-    avatarUrl = await uploadFile({
+    storageUrl = await uploadFile({
       buffer: fileBuffer,
       key: storageKey,
       contentType: file.mimetype,
     });
-    logger.info('Avatar uploaded to storage', { userId, storageKey, avatarUrl });
+    logger.info('Avatar uploaded to storage', { userId, storageKey, storageUrl });
   } catch (error: any) {
     logger.error('Failed to upload avatar to storage', { userId, error: error.message });
     await fs.unlink(file.path).catch(() => {});
@@ -343,6 +343,11 @@ export const uploadAvatar = async (req: AuthRequest, res: Response) => {
   await fs.unlink(file.path).catch((error) => {
     logger.debug('Temp file cleanup - file may already be deleted', { path: file.path });
   });
+
+  // For local storage, use API endpoint. For S3, use direct URL
+  const avatarUrl = storageUrl.startsWith('http')
+    ? storageUrl // S3 URL
+    : `/api/users/${userId}/avatar?t=${Date.now()}`; // Local - use API endpoint
 
   const result = await pool.query(
     `UPDATE users
@@ -401,24 +406,38 @@ export const getAvatar = async (req: AuthRequest, res: Response) => {
     throw new NotFoundError('Avatar not found');
   }
 
-  // If S3 URL, redirect to it
+  // If S3 URL (starts with http), redirect to it
   if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
     return res.redirect(avatarUrl);
   }
 
-  // Otherwise, serve from local storage
-  // Extract storage key from URL path
-  const storageKey = avatarUrl.replace(/^\/uploads\//, '');
-
+  // For local storage, find the latest avatar file for this user
   try {
-    const fileBuffer = await getFile(storageKey);
+    const avatarDir = path.join(process.cwd(), 'uploads', 'avatars', userId);
+
+    if (!await fs.access(avatarDir).then(() => true).catch(() => false)) {
+      throw new NotFoundError('Avatar not found');
+    }
+
+    const files = await fs.readdir(avatarDir);
+    const avatarFiles = files.filter(f => f.startsWith('avatar-'));
+
+    if (avatarFiles.length === 0) {
+      throw new NotFoundError('Avatar file not found');
+    }
+
+    // Get the latest avatar file (highest timestamp)
+    const latestAvatar = avatarFiles.sort().reverse()[0];
+    const fullStorageKey = `avatars/${userId}/${latestAvatar}`;
+
+    const fileBuffer = await getFile(fullStorageKey);
 
     if (!fileBuffer) {
       throw new NotFoundError('Avatar file not found');
     }
 
     // Determine content type from file extension
-    const ext = path.extname(storageKey).toLowerCase();
+    const ext = path.extname(latestAvatar).toLowerCase();
     const contentTypeMap: Record<string, string> = {
       '.jpg': 'image/jpeg',
       '.jpeg': 'image/jpeg',
@@ -456,24 +475,42 @@ export const getUserAvatar = async (req: AuthRequest, res: Response) => {
     throw new NotFoundError('Avatar not found');
   }
 
-  // If S3 URL, redirect to it
+  // If S3 URL (starts with http), redirect to it
   if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
     return res.redirect(avatarUrl);
   }
 
-  // Otherwise, serve from local storage
-  // Extract storage key from URL path
-  const storageKey = avatarUrl.replace(/^\/uploads\//, '');
+  // For local storage, find the latest avatar file for this user
+  // Files are stored at: uploads/avatars/{userId}/avatar-{timestamp}.{ext}
+  const storageKey = `avatars/${userId}`;
 
   try {
-    const fileBuffer = await getFile(storageKey);
+    // List files in user's avatar directory to find the latest one
+    const avatarDir = path.join(process.cwd(), 'uploads', 'avatars', userId);
+
+    if (!await fs.access(avatarDir).then(() => true).catch(() => false)) {
+      throw new NotFoundError('Avatar not found');
+    }
+
+    const files = await fs.readdir(avatarDir);
+    const avatarFiles = files.filter(f => f.startsWith('avatar-'));
+
+    if (avatarFiles.length === 0) {
+      throw new NotFoundError('Avatar file not found');
+    }
+
+    // Get the latest avatar file (highest timestamp)
+    const latestAvatar = avatarFiles.sort().reverse()[0];
+    const fullStorageKey = `avatars/${userId}/${latestAvatar}`;
+
+    const fileBuffer = await getFile(fullStorageKey);
 
     if (!fileBuffer) {
       throw new NotFoundError('Avatar file not found');
     }
 
     // Determine content type from file extension
-    const ext = path.extname(storageKey).toLowerCase();
+    const ext = path.extname(latestAvatar).toLowerCase();
     const contentTypeMap: Record<string, string> = {
       '.jpg': 'image/jpeg',
       '.jpeg': 'image/jpeg',
