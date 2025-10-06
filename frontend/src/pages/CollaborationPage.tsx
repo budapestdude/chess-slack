@@ -425,7 +425,7 @@ const themes: Record<ThemeName, Theme> = {
     colors: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'],
     bgFrom: 'from-gray-50',
     bgTo: 'to-gray-100',
-    connectionColor: '#CBD5E0'
+    connectionColor: '#94A3B8'
   },
   ocean: {
     name: 'ocean',
@@ -830,7 +830,7 @@ const MindMapTool: React.FC = () => {
       )}
 
       {/* SVG for connections */}
-      <svg className="absolute inset-0 pointer-events-none">
+      <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 5 }}>
         {nodes.map(node =>
           node.children.map(childId => {
             const child = nodes.find(n => n.id === childId);
@@ -841,14 +841,25 @@ const MindMapTool: React.FC = () => {
             const path = getConnectionPath(nodeCenter.x, nodeCenter.y, childCenter.x, childCenter.y, connectionStyle);
 
             return (
-              <path
-                key={`${node.id}-${childId}`}
-                d={path}
-                stroke={theme.connectionColor}
-                strokeWidth="3"
-                fill="none"
-                strokeLinecap="round"
-              />
+              <g key={`${node.id}-${childId}`}>
+                {/* Shadow/outline */}
+                <path
+                  d={path}
+                  stroke="#000000"
+                  strokeWidth="6"
+                  fill="none"
+                  strokeLinecap="round"
+                  opacity="0.1"
+                />
+                {/* Main line */}
+                <path
+                  d={path}
+                  stroke={theme.connectionColor}
+                  strokeWidth="4"
+                  fill="none"
+                  strokeLinecap="round"
+                />
+              </g>
             );
           })
         )}
