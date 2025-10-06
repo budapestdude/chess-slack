@@ -8,6 +8,16 @@ import { NotFoundError, BadRequestError } from '../errors';
 import logger from '../utils/logger';
 import { validateFileType } from '../middleware/upload';
 
+// Helper to transform relative avatar URLs to full URLs for cross-origin compatibility
+const getFullAvatarUrl = (avatarUrl: string | null): string | null => {
+  if (!avatarUrl) return null;
+  if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
+    return avatarUrl; // Already a full URL
+  }
+  const baseUrl = process.env.API_BASE_URL || process.env.BACKEND_URL || '';
+  return baseUrl ? `${baseUrl}${avatarUrl}` : avatarUrl;
+};
+
 export const getUserProfile = async (req: AuthRequest, res: Response) => {
   const { userId } = req.params;
 
@@ -31,7 +41,7 @@ export const getUserProfile = async (req: AuthRequest, res: Response) => {
     id: user.id,
     username: user.username,
     displayName: user.display_name,
-    avatarUrl: user.avatar_url,
+    avatarUrl: getFullAvatarUrl(user.avatar_url),
     customStatus: user.custom_status,
     statusEmoji: user.status_emoji,
     bio: user.bio,
@@ -73,7 +83,7 @@ export const updateMyProfile = async (req: AuthRequest, res: Response) => {
       id: user.id,
       username: user.username,
       displayName: user.display_name,
-      avatarUrl: user.avatar_url,
+      avatarUrl: getFullAvatarUrl(user.avatar_url),
       customStatus: user.custom_status,
       statusEmoji: user.status_emoji,
       bio: user.bio,
@@ -85,7 +95,7 @@ export const updateMyProfile = async (req: AuthRequest, res: Response) => {
     id: user.id,
     username: user.username,
     displayName: user.display_name,
-    avatarUrl: user.avatar_url,
+    avatarUrl: getFullAvatarUrl(user.avatar_url),
     customStatus: user.custom_status,
     statusEmoji: user.status_emoji,
     bio: user.bio,
@@ -127,7 +137,7 @@ export const setCustomStatus = async (req: AuthRequest, res: Response) => {
     id: user.id,
     username: user.username,
     displayName: user.display_name,
-    avatarUrl: user.avatar_url,
+    avatarUrl: getFullAvatarUrl(user.avatar_url),
     customStatus: user.custom_status,
     statusEmoji: user.status_emoji,
   });
@@ -171,7 +181,7 @@ export const setPresence = async (req: AuthRequest, res: Response) => {
       userId: user.id,
       username: user.username,
       displayName: user.display_name,
-      avatarUrl: user.avatar_url,
+      avatarUrl: getFullAvatarUrl(user.avatar_url),
       status,
     });
   });
@@ -262,7 +272,7 @@ export const getWorkspaceMembers = async (req: AuthRequest, res: Response) => {
     id: row.id,
     username: row.username,
     displayName: row.display_name,
-    avatarUrl: row.avatar_url,
+    avatarUrl: getFullAvatarUrl(row.avatar_url),
     customStatus: row.custom_status,
     statusEmoji: row.status_emoji,
     role: row.role,
@@ -351,7 +361,11 @@ export const uploadAvatar = async (req: AuthRequest, res: Response) => {
   });
 
   // Update user avatar_url in database
-  const avatarUrl = `/api/users/me/avatar?t=${Date.now()}`; // Add timestamp for cache busting
+  // Use full URL for cross-origin compatibility (Railway deployment)
+  const baseUrl = process.env.API_BASE_URL || process.env.BACKEND_URL || '';
+  const avatarPath = `/api/users/me/avatar?t=${Date.now()}`;
+  const avatarUrl = baseUrl ? `${baseUrl}${avatarPath}` : avatarPath;
+
   const result = await pool.query(
     `UPDATE users
      SET avatar_url = $1, updated_at = NOW()
@@ -375,7 +389,7 @@ export const uploadAvatar = async (req: AuthRequest, res: Response) => {
       id: user.id,
       username: user.username,
       displayName: user.display_name,
-      avatarUrl: user.avatar_url,
+      avatarUrl: getFullAvatarUrl(user.avatar_url),
       customStatus: user.custom_status,
       statusEmoji: user.status_emoji,
     });
@@ -385,7 +399,7 @@ export const uploadAvatar = async (req: AuthRequest, res: Response) => {
     id: user.id,
     username: user.username,
     displayName: user.display_name,
-    avatarUrl: user.avatar_url,
+    avatarUrl: getFullAvatarUrl(user.avatar_url),
     customStatus: user.custom_status,
     statusEmoji: user.status_emoji,
   });
