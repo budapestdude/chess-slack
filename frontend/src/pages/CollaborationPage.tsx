@@ -396,6 +396,10 @@ const WhiteboardTool: React.FC = () => {
 // Mind Map Tool
 // ============================================================================
 
+type NodeShape = 'rectangle' | 'circle' | 'diamond' | 'hexagon' | 'cloud' | 'star';
+type ConnectionStyle = 'straight' | 'curved' | 'bezier' | 'stepped';
+type ThemeName = 'default' | 'ocean' | 'sunset' | 'forest' | 'minimal' | 'vibrant';
+
 interface MindMapNode {
   id: string;
   text: string;
@@ -403,18 +407,78 @@ interface MindMapNode {
   y: number;
   color: string;
   children: string[];
+  shape?: NodeShape;
+  fontSize?: number;
 }
+
+interface Theme {
+  name: ThemeName;
+  colors: string[];
+  bgFrom: string;
+  bgTo: string;
+  connectionColor: string;
+}
+
+const themes: Record<ThemeName, Theme> = {
+  default: {
+    name: 'default',
+    colors: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'],
+    bgFrom: 'from-gray-50',
+    bgTo: 'to-gray-100',
+    connectionColor: '#CBD5E0'
+  },
+  ocean: {
+    name: 'ocean',
+    colors: ['#0EA5E9', '#06B6D4', '#14B8A6', '#3B82F6', '#6366F1', '#8B5CF6'],
+    bgFrom: 'from-cyan-50',
+    bgTo: 'to-blue-100',
+    connectionColor: '#67E8F9'
+  },
+  sunset: {
+    name: 'sunset',
+    colors: ['#F59E0B', '#F97316', '#EF4444', '#EC4899', '#F472B6', '#FB923C'],
+    bgFrom: 'from-orange-50',
+    bgTo: 'to-pink-100',
+    connectionColor: '#FDE68A'
+  },
+  forest: {
+    name: 'forest',
+    colors: ['#10B981', '#14B8A6', '#22C55E', '#16A34A', '#84CC16', '#65A30D'],
+    bgFrom: 'from-emerald-50',
+    bgTo: 'to-lime-100',
+    connectionColor: '#86EFAC'
+  },
+  minimal: {
+    name: 'minimal',
+    colors: ['#000000', '#374151', '#6B7280', '#9CA3AF', '#D1D5DB', '#E5E7EB'],
+    bgFrom: 'from-white',
+    bgTo: 'to-gray-50',
+    connectionColor: '#E5E7EB'
+  },
+  vibrant: {
+    name: 'vibrant',
+    colors: ['#FF0080', '#00D9FF', '#FFD700', '#00FF9F', '#FF00FF', '#FFAA00'],
+    bgFrom: 'from-purple-100',
+    bgTo: 'to-pink-100',
+    connectionColor: '#FCD34D'
+  }
+};
 
 const MindMapTool: React.FC = () => {
   const [nodes, setNodes] = useState<MindMapNode[]>([
-    { id: '1', text: 'Main Idea', x: 400, y: 300, color: '#3B82F6', children: [] }
+    { id: '1', text: 'Main Idea', x: 400, y: 300, color: '#3B82F6', children: [], shape: 'rectangle', fontSize: 16 }
   ]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [currentTheme, setCurrentTheme] = useState<ThemeName>('default');
+  const [connectionStyle, setConnectionStyle] = useState<ConnectionStyle>('curved');
+  const [showDesignPanel, setShowDesignPanel] = useState(false);
+  const [showGrid, setShowGrid] = useState(true);
 
-  const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
+  const theme = themes[currentTheme];
+  const colors = theme.colors;
 
   const addChildNode = (parentId: string) => {
     const parent = nodes.find(n => n.id === parentId);
@@ -423,10 +487,12 @@ const MindMapTool: React.FC = () => {
     const newNode: MindMapNode = {
       id: Date.now().toString(),
       text: 'New Node',
-      x: parent.x + 200,
-      y: parent.y + (parent.children.length * 100 - 50),
+      x: parent.x + 250,
+      y: parent.y + (parent.children.length * 120 - 60),
       color: colors[Math.floor(Math.random() * colors.length)],
-      children: []
+      children: [],
+      shape: parent.shape || 'rectangle',
+      fontSize: 14
     };
 
     setNodes([...nodes, newNode]);
@@ -440,6 +506,18 @@ const MindMapTool: React.FC = () => {
 
   const updateNodeText = (nodeId: string, text: string) => {
     setNodes(nodes.map(n => n.id === nodeId ? { ...n, text } : n));
+  };
+
+  const updateNodeShape = (nodeId: string, shape: NodeShape) => {
+    setNodes(nodes.map(n => n.id === nodeId ? { ...n, shape } : n));
+  };
+
+  const updateNodeColor = (nodeId: string, color: string) => {
+    setNodes(nodes.map(n => n.id === nodeId ? { ...n, color } : n));
+  };
+
+  const updateNodeSize = (nodeId: string, fontSize: number) => {
+    setNodes(nodes.map(n => n.id === nodeId ? { ...n, fontSize } : n));
   };
 
   const deleteNode = (nodeId: string) => {
@@ -493,22 +571,202 @@ const MindMapTool: React.FC = () => {
     setDraggedNodeId(null);
   };
 
+  // Generate connection path based on style
+  const getConnectionPath = (x1: number, y1: number, x2: number, y2: number, style: ConnectionStyle): string => {
+    const midX = (x1 + x2) / 2;
+    const midY = (y1 + y2) / 2;
+
+    switch (style) {
+      case 'straight':
+        return `M ${x1} ${y1} L ${x2} ${y2}`;
+
+      case 'curved':
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const offset = Math.abs(dx) * 0.5;
+        return `M ${x1} ${y1} C ${x1 + offset} ${y1}, ${x2 - offset} ${y2}, ${x2} ${y2}`;
+
+      case 'bezier':
+        return `M ${x1} ${y1} Q ${midX} ${y1}, ${midX} ${midY} T ${x2} ${y2}`;
+
+      case 'stepped':
+        return `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`;
+
+      default:
+        return `M ${x1} ${y1} L ${x2} ${y2}`;
+    }
+  };
+
+  // Get node center point based on shape
+  const getNodeCenter = (node: MindMapNode): { x: number; y: number } => {
+    const baseX = node.x;
+    const baseY = node.y;
+
+    switch (node.shape) {
+      case 'circle':
+        return { x: baseX + 75, y: baseY + 75 };
+      case 'diamond':
+        return { x: baseX + 75, y: baseY + 75 };
+      case 'hexagon':
+        return { x: baseX + 75, y: baseY + 60 };
+      default:
+        return { x: baseX + 75, y: baseY + 25 };
+    }
+  };
+
+  // Get node shape-specific styling
+  const getNodeShapeStyles = (shape?: NodeShape) => {
+    switch (shape) {
+      case 'circle':
+        return 'rounded-full w-[150px] h-[150px] flex items-center justify-center';
+      case 'diamond':
+        return 'w-[150px] h-[150px] transform rotate-45';
+      case 'hexagon':
+        return 'hexagon-shape';
+      case 'cloud':
+        return 'cloud-shape rounded-3xl';
+      case 'star':
+        return 'star-shape';
+      default:
+        return 'rounded-xl min-w-[150px]';
+    }
+  };
+
   return (
     <div
-      className="h-full bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden"
+      className={`h-full bg-gradient-to-br ${theme.bgFrom} ${theme.bgTo} relative overflow-hidden`}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
+      style={{
+        backgroundImage: showGrid
+          ? 'radial-gradient(circle, #00000008 1px, transparent 1px)'
+          : 'none',
+        backgroundSize: showGrid ? '20px 20px' : 'auto'
+      }}
     >
-      {/* Instructions */}
-      <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-4 z-10">
-        <h3 className="font-semibold text-gray-900 mb-2">Mind Map Controls</h3>
-        <ul className="text-sm text-gray-600 space-y-1">
-          <li>• Click node to select</li>
-          <li>• Drag to move</li>
-          <li>• Double-click to edit</li>
-          <li>• Use buttons to add/delete</li>
-        </ul>
-      </div>
+      {/* Design Panel Toggle */}
+      <button
+        onClick={() => setShowDesignPanel(!showDesignPanel)}
+        className="absolute top-4 right-4 z-20 px-4 py-2 bg-white rounded-lg shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
+      >
+        <Sparkles className="w-5 h-5 text-purple-600" />
+        <span className="font-medium">Design</span>
+      </button>
+
+      {/* Design Panel */}
+      {showDesignPanel && (
+        <div className="absolute top-16 right-4 z-20 bg-white rounded-lg shadow-2xl p-6 w-80 max-h-[80vh] overflow-y-auto">
+          <h3 className="font-bold text-lg text-gray-900 mb-4 flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-purple-600" />
+            Design Options
+          </h3>
+
+          {/* Theme Selection */}
+          <div className="mb-6">
+            <label className="block text-sm font-semibold text-gray-700 mb-3">Theme</label>
+            <div className="grid grid-cols-2 gap-2">
+              {(Object.keys(themes) as ThemeName[]).map(themeName => (
+                <button
+                  key={themeName}
+                  onClick={() => setCurrentTheme(themeName)}
+                  className={`p-3 rounded-lg border-2 transition-all capitalize ${
+                    currentTheme === themeName
+                      ? 'border-purple-500 bg-purple-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex gap-1 mb-2">
+                    {themes[themeName].colors.slice(0, 3).map((c, i) => (
+                      <div
+                        key={i}
+                        className="w-4 h-4 rounded-full"
+                        style={{ backgroundColor: c }}
+                      />
+                    ))}
+                  </div>
+                  <div className="text-xs font-medium">{themeName}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Connection Style */}
+          <div className="mb-6">
+            <label className="block text-sm font-semibold text-gray-700 mb-3">Connection Style</label>
+            <div className="space-y-2">
+              {(['straight', 'curved', 'bezier', 'stepped'] as ConnectionStyle[]).map(style => (
+                <button
+                  key={style}
+                  onClick={() => setConnectionStyle(style)}
+                  className={`w-full px-4 py-2 rounded-lg border-2 transition-all capitalize text-left ${
+                    connectionStyle === style
+                      ? 'border-purple-500 bg-purple-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  {style}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Node Shape (for selected node) */}
+          {selectedNodeId && (
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-gray-700 mb-3">Node Shape</label>
+              <div className="grid grid-cols-3 gap-2">
+                {(['rectangle', 'circle', 'diamond', 'hexagon', 'cloud', 'star'] as NodeShape[]).map(shape => (
+                  <button
+                    key={shape}
+                    onClick={() => updateNodeShape(selectedNodeId, shape)}
+                    className={`p-3 rounded-lg border-2 transition-all capitalize text-xs ${
+                      nodes.find(n => n.id === selectedNodeId)?.shape === shape
+                        ? 'border-purple-500 bg-purple-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    {shape}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Node Color (for selected node) */}
+          {selectedNodeId && (
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-gray-700 mb-3">Node Color</label>
+              <div className="grid grid-cols-6 gap-2">
+                {colors.map(color => (
+                  <button
+                    key={color}
+                    onClick={() => updateNodeColor(selectedNodeId, color)}
+                    className={`w-8 h-8 rounded-lg border-2 transition-all ${
+                      nodes.find(n => n.id === selectedNodeId)?.color === color
+                        ? 'border-purple-500 scale-110'
+                        : 'border-gray-300'
+                    }`}
+                    style={{ backgroundColor: color }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Background Grid */}
+          <div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showGrid}
+                onChange={(e) => setShowGrid(e.target.checked)}
+                className="rounded"
+              />
+              <span className="text-sm font-medium text-gray-700">Show Grid</span>
+            </label>
+          </div>
+        </div>
+      )}
 
       {/* SVG for connections */}
       <svg className="absolute inset-0 pointer-events-none">
@@ -516,15 +774,19 @@ const MindMapTool: React.FC = () => {
           node.children.map(childId => {
             const child = nodes.find(n => n.id === childId);
             if (!child) return null;
+
+            const nodeCenter = getNodeCenter(node);
+            const childCenter = getNodeCenter(child);
+            const path = getConnectionPath(nodeCenter.x, nodeCenter.y, childCenter.x, childCenter.y, connectionStyle);
+
             return (
-              <line
+              <path
                 key={`${node.id}-${childId}`}
-                x1={node.x + 75}
-                y1={node.y + 25}
-                x2={child.x + 75}
-                y2={child.y + 25}
-                stroke="#CBD5E0"
-                strokeWidth="2"
+                d={path}
+                stroke={theme.connectionColor}
+                strokeWidth="3"
+                fill="none"
+                strokeLinecap="round"
               />
             );
           })
@@ -532,65 +794,77 @@ const MindMapTool: React.FC = () => {
       </svg>
 
       {/* Nodes */}
-      {nodes.map(node => (
-        <div
-          key={node.id}
-          style={{
-            position: 'absolute',
-            left: node.x,
-            top: node.y,
-            zIndex: selectedNodeId === node.id ? 20 : 10
-          }}
-          onMouseDown={(e) => {
-            e.stopPropagation();
-            setSelectedNodeId(node.id);
-          }}
-        >
+      {nodes.map(node => {
+        const isDiamond = node.shape === 'diamond';
+        return (
           <div
-            className={`
-              bg-white rounded-lg shadow-lg p-4 min-w-[150px] cursor-move
-              border-2 transition-all
-              ${selectedNodeId === node.id ? 'border-blue-500 scale-105' : 'border-gray-200'}
-            `}
-            style={{ borderLeftColor: node.color, borderLeftWidth: '4px' }}
-            onMouseDown={(e) => handleMouseDown(e, node.id)}
-            onDoubleClick={() => setEditingNodeId(node.id)}
+            key={node.id}
+            style={{
+              position: 'absolute',
+              left: node.x,
+              top: node.y,
+              zIndex: selectedNodeId === node.id ? 20 : 10
+            }}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              setSelectedNodeId(node.id);
+            }}
           >
-            {editingNodeId === node.id ? (
-              <input
-                type="text"
-                value={node.text}
-                onChange={(e) => updateNodeText(node.id, e.target.value)}
-                onBlur={() => setEditingNodeId(null)}
-                onKeyDown={(e) => e.key === 'Enter' && setEditingNodeId(null)}
-                autoFocus
-                className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            ) : (
-              <div className="font-medium text-gray-900">{node.text}</div>
-            )}
+            <div
+              className={`
+                bg-white shadow-2xl p-4 cursor-move
+                border-4 transition-all
+                ${getNodeShapeStyles(node.shape)}
+                ${selectedNodeId === node.id ? 'scale-110 shadow-purple-300' : ''}
+              `}
+              style={{
+                borderColor: selectedNodeId === node.id ? '#8B5CF6' : node.color,
+                fontSize: `${node.fontSize || 14}px`
+              }}
+              onMouseDown={(e) => handleMouseDown(e, node.id)}
+              onDoubleClick={() => setEditingNodeId(node.id)}
+            >
+              <div className={isDiamond ? 'transform -rotate-45' : ''}>
+                {editingNodeId === node.id ? (
+                  <input
+                    type="text"
+                    value={node.text}
+                    onChange={(e) => updateNodeText(node.id, e.target.value)}
+                    onBlur={() => setEditingNodeId(null)}
+                    onKeyDown={(e) => e.key === 'Enter' && setEditingNodeId(null)}
+                    autoFocus
+                    className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500 bg-transparent text-center"
+                  />
+                ) : (
+                  <div className="font-bold text-gray-900 text-center leading-tight" style={{ color: node.color }}>
+                    {node.text}
+                  </div>
+                )}
 
-            {selectedNodeId === node.id && (
-              <div className="flex gap-2 mt-2">
-                <button
-                  onClick={() => addChildNode(node.id)}
-                  className="flex-1 px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
-                >
-                  <Plus className="w-3 h-3 mx-auto" />
-                </button>
-                {node.id !== '1' && (
-                  <button
-                    onClick={() => deleteNode(node.id)}
-                    className="flex-1 px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
-                  >
-                    <Trash2 className="w-3 h-3 mx-auto" />
-                  </button>
+                {selectedNodeId === node.id && !editingNodeId && (
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      onClick={() => addChildNode(node.id)}
+                      className="flex-1 px-2 py-1.5 text-white rounded-lg text-xs hover:opacity-90 shadow-lg transition-all"
+                      style={{ backgroundColor: node.color }}
+                    >
+                      <Plus className="w-4 h-4 mx-auto" />
+                    </button>
+                    {node.id !== '1' && (
+                      <button
+                        onClick={() => deleteNode(node.id)}
+                        className="flex-1 px-2 py-1.5 bg-red-500 text-white rounded-lg text-xs hover:bg-red-600 shadow-lg transition-all"
+                      >
+                        <Trash2 className="w-4 h-4 mx-auto" />
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };
