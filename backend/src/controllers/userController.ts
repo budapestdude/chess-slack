@@ -354,7 +354,7 @@ export const uploadAvatar = async (req: AuthRequest, res: Response) => {
 
   const user = result.rows[0];
 
-  logger.info('Avatar uploaded successfully', { userId, filename, newPath });
+  logger.info('Avatar uploaded successfully', { userId, storageKey, avatarUrl });
 
   // Broadcast profile update to all workspaces user is in
   const workspacesResult = await pool.query(
