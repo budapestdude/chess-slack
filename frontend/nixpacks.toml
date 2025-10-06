@@ -6,7 +6,7 @@ cmds = ["npm install"]
 
 [phases.build]
 cmds = [
-  "rm -rf dist node_modules/.vite",
+  "rm -rf dist node_modules/.vite node_modules/.cache",
   "npm run build",
   "cp serve.json dist/serve.json"
 ]
