@@ -411,6 +411,7 @@ interface MindMapNode {
   children: string[];
   shape?: NodeShape;
   fontSize?: number;
+  items?: string[];
 }
 
 interface Theme {
@@ -468,7 +469,7 @@ const themes: Record<ThemeName, Theme> = {
 
 const MindMapTool: React.FC = () => {
   const [nodes, setNodes] = useState<MindMapNode[]>([
-    { id: '1', text: 'Main Idea', x: 400, y: 300, color: '#3B82F6', children: [], shape: 'rectangle', fontSize: 16 }
+    { id: '1', text: 'Main Idea', x: 400, y: 300, color: '#3B82F6', children: [], shape: 'rectangle', fontSize: 16, items: [] }
   ]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
@@ -507,7 +508,8 @@ const MindMapTool: React.FC = () => {
       color: colors[Math.floor(Math.random() * colors.length)],
       children: [],
       shape: parent.shape || 'rectangle',
-      fontSize: 14
+      fontSize: 14,
+      items: []
     };
 
     setNodes([...nodes, newNode]);
@@ -533,6 +535,30 @@ const MindMapTool: React.FC = () => {
 
   const updateNodeSize = (nodeId: string, fontSize: number) => {
     setNodes(nodes.map(n => n.id === nodeId ? { ...n, fontSize } : n));
+  };
+
+  const addNodeItem = (nodeId: string, item: string) => {
+    setNodes(nodes.map(n =>
+      n.id === nodeId
+        ? { ...n, items: [...(n.items || []), item] }
+        : n
+    ));
+  };
+
+  const updateNodeItem = (nodeId: string, itemIndex: number, newText: string) => {
+    setNodes(nodes.map(n =>
+      n.id === nodeId && n.items
+        ? { ...n, items: n.items.map((item, i) => i === itemIndex ? newText : item) }
+        : n
+    ));
+  };
+
+  const removeNodeItem = (nodeId: string, itemIndex: number) => {
+    setNodes(nodes.map(n =>
+      n.id === nodeId && n.items
+        ? { ...n, items: n.items.filter((_, i) => i !== itemIndex) }
+        : n
+    ));
   };
 
   const connectNodes = (fromId: string, toId: string) => {
@@ -1040,6 +1066,18 @@ const MindMapTool: React.FC = () => {
                   </div>
                 )}
 
+                {/* Display items list */}
+                {node.items && node.items.length > 0 && !editingNodeId && (
+                  <div className="mt-2 space-y-1">
+                    {node.items.map((item, idx) => (
+                      <div key={idx} className="text-xs text-gray-700 flex items-start gap-1">
+                        <span className="text-gray-400">•</span>
+                        <span className="flex-1">{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {selectedNodeId === node.id && !editingNodeId && !connectionMode && (
                   <>
                     <div className="flex gap-2 mt-3">
@@ -1058,6 +1096,50 @@ const MindMapTool: React.FC = () => {
                           <Trash2 className="w-4 h-4 mx-auto" />
                         </button>
                       )}
+                    </div>
+
+                    {/* Manage items */}
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <div className="text-xs font-semibold text-gray-600 mb-2">
+                        Features / Options:
+                      </div>
+                      <div className="space-y-1">
+                        {(node.items || []).map((item, idx) => (
+                          <div key={idx} className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded text-xs">
+                            <span className="flex-1">{item}</span>
+                            <button
+                              onClick={() => removeNodeItem(node.id, idx)}
+                              className="text-red-500 hover:text-red-700"
+                              title="Remove item"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            const input = e.currentTarget.querySelector('input') as HTMLInputElement;
+                            if (input.value.trim()) {
+                              addNodeItem(node.id, input.value.trim());
+                              input.value = '';
+                            }
+                          }}
+                          className="flex gap-1"
+                        >
+                          <input
+                            type="text"
+                            placeholder="Add item..."
+                            className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                          <button
+                            type="submit"
+                            className="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                        </form>
+                      </div>
                     </div>
 
                     {/* Show connections */}
