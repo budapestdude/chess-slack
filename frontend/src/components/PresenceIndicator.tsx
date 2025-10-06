@@ -25,10 +25,10 @@ export default function PresenceIndicator({ status, size = 'md', className }: Pr
       className={clsx(
         'rounded-full border-2 border-white',
         sizeClasses[size],
-        statusClasses[status],
+        status ? statusClasses[status] : statusClasses.offline,
         className
       )}
-      title={status.charAt(0).toUpperCase() + status.slice(1)}
+      title={status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown'}
     />
   );
 }
