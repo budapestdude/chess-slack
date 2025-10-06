@@ -5,8 +5,9 @@ import {
   deleteChecklistItem,
   bulkCreateChecklistItems,
   getDailyChecklist,
+  rolloverIncompleteTasksToToday,
 } from '../services/personal';
-import { CheckCircleIcon, TrashIcon, PlusIcon, SparklesIcon, ChevronLeftIcon, ChevronRightIcon, CalendarIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { CheckCircleIcon, TrashIcon, PlusIcon, SparklesIcon, ChevronLeftIcon, ChevronRightIcon, CalendarIcon, ArrowPathIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid';
 import RecurringTasksManager from './RecurringTasksManager';
 
@@ -103,6 +104,20 @@ const DailyChecklistCard: React.FC<DailyChecklistCardProps> = ({ workspaceId, it
     }
   };
 
+  const handleRolloverTasks = async () => {
+    try {
+      setLoading(true);
+      const result = await rolloverIncompleteTasksToToday(workspaceId);
+      console.log(`Rolled over ${result.count} tasks to today`);
+      loadDateData(selectedDate);
+      onUpdate();
+    } catch (error) {
+      console.error('Error rolling over tasks:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const toggleHideCompleted = () => {
     setHideCompleted(!hideCompleted);
   };
@@ -111,6 +126,7 @@ const DailyChecklistCard: React.FC<DailyChecklistCardProps> = ({ workspaceId, it
   const completedCount = viewingItems.filter((item) => item.completed).length;
   const totalCount = viewingItems.length;
   const displayedItems = hideCompleted ? viewingItems.filter((item) => !item.completed) : viewingItems;
+  const rolledOverCount = viewingItems.filter((item) => item.is_rolled_over && !item.completed).length;
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr + 'T00:00:00');
@@ -178,9 +194,25 @@ const DailyChecklistCard: React.FC<DailyChecklistCardProps> = ({ workspaceId, it
             </h2>
             <p className="text-sm text-gray-600 mt-1">
               {completedCount} of {totalCount} completed
+              {isToday && rolledOverCount > 0 && (
+                <span className="ml-2 text-orange-600">
+                  · {rolledOverCount} from previous days
+                </span>
+              )}
             </p>
           </div>
           <div className="flex gap-2">
+            {isToday && rolledOverCount > 0 && (
+              <button
+                onClick={handleRolloverTasks}
+                disabled={loading}
+                className="flex items-center px-3 py-2 text-sm bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 disabled:opacity-50"
+                title="Move all incomplete tasks from previous days to today"
+              >
+                <ArrowRightIcon className="h-5 w-5 mr-2" />
+                Roll to Today ({rolledOverCount})
+              </button>
+            )}
             <button
               onClick={() => setShowRecurringManager(true)}
               className="flex items-center px-3 py-2 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200"
@@ -276,6 +308,8 @@ const DailyChecklistCard: React.FC<DailyChecklistCardProps> = ({ workspaceId, it
                 className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
                   item.completed
                     ? 'bg-gray-50 border-gray-200'
+                    : item.is_rolled_over
+                    ? 'bg-orange-50 border-orange-200 hover:bg-orange-100'
                     : 'bg-white border-gray-300 hover:bg-gray-50'
                 }`}
               >
@@ -289,13 +323,20 @@ const DailyChecklistCard: React.FC<DailyChecklistCardProps> = ({ workspaceId, it
                     <CheckCircleIcon className="h-6 w-6 text-gray-400" />
                   )}
                 </button>
-                <span
-                  className={`flex-1 ${
-                    item.completed ? 'line-through text-gray-500' : 'text-gray-900'
-                  }`}
-                >
-                  {item.content}
-                </span>
+                <div className="flex-1 flex items-center gap-2">
+                  <span
+                    className={`${
+                      item.completed ? 'line-through text-gray-500' : 'text-gray-900'
+                    }`}
+                  >
+                    {item.content}
+                  </span>
+                  {item.is_rolled_over && item.original_date && (
+                    <span className="text-xs px-2 py-0.5 bg-orange-200 text-orange-800 rounded-full font-medium whitespace-nowrap">
+                      from {formatDate(item.original_date)}
+                    </span>
+                  )}
+                </div>
                 <button
                   onClick={() => handleDelete(item.id)}
                   className="flex-shrink-0 p-1 text-gray-400 hover:text-red-600 rounded hover:bg-gray-100"

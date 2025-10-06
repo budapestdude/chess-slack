@@ -641,7 +641,9 @@ export const getDailyChecklist = async (req: AuthRequest, res: Response) => {
     }
 
     const taskDate = date || new Date().toISOString().split('T')[0];
+    const isToday = taskDate === new Date().toISOString().split('T')[0];
 
+    // Get tasks for the specified date
     const result = await pool.query(
       `SELECT * FROM daily_checklist_items
        WHERE user_id = $1 AND workspace_id = $2 AND task_date = $3
@@ -649,7 +651,30 @@ export const getDailyChecklist = async (req: AuthRequest, res: Response) => {
       [userId, workspaceId, taskDate]
     );
 
-    res.json(result.rows);
+    let items = result.rows;
+
+    // If viewing today, also include incomplete tasks from previous days
+    if (isToday) {
+      const incompleteFromPast = await pool.query(
+        `SELECT * FROM daily_checklist_items
+         WHERE user_id = $1 AND workspace_id = $2
+         AND task_date < $3 AND completed = false
+         ORDER BY task_date DESC, sort_order ASC, created_at ASC`,
+        [userId, workspaceId, taskDate]
+      );
+
+      // Add a flag to indicate these are from previous days
+      const rolledOverItems = incompleteFromPast.rows.map(item => ({
+        ...item,
+        is_rolled_over: true,
+        original_date: item.task_date,
+      }));
+
+      // Combine: rolled-over items first, then today's items
+      items = [...rolledOverItems, ...items];
+    }
+
+    res.json(items);
   } catch (error) {
     console.error('Error fetching daily checklist:', error);
     res.status(500).json({ error: 'Failed to fetch daily checklist' });
@@ -781,6 +806,38 @@ export const clearCompletedChecklistItems = async (req: AuthRequest, res: Respon
   } catch (error) {
     console.error('Error clearing completed items:', error);
     res.status(500).json({ error: 'Failed to clear completed items' });
+  }
+};
+
+export const rolloverIncompleteTasksToToday = async (req: AuthRequest, res: Response) => {
+  try {
+    const workspaceId = req.params.workspaceId;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+
+    // Update all incomplete tasks from previous days to today
+    const result = await pool.query(
+      `UPDATE daily_checklist_items
+       SET task_date = $1, updated_at = CURRENT_TIMESTAMP
+       WHERE user_id = $2 AND workspace_id = $3
+       AND task_date < $1 AND completed = false
+       RETURNING *`,
+      [today, userId, workspaceId]
+    );
+
+    res.json({
+      message: 'Incomplete tasks rolled over to today',
+      count: result.rows.length,
+      items: result.rows,
+    });
+  } catch (error) {
+    console.error('Error rolling over tasks:', error);
+    res.status(500).json({ error: 'Failed to roll over tasks' });
   }
 };
 

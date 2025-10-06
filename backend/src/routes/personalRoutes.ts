@@ -18,6 +18,7 @@ import {
   toggleChecklistItem,
   deleteChecklistItem,
   clearCompletedChecklistItems,
+  rolloverIncompleteTasksToToday,
   getRecurringTasks,
   createRecurringTask,
   updateRecurringTask,
@@ -56,6 +57,7 @@ router.post('/:workspaceId/checklist/bulk', bulkCreateChecklistItems);
 router.post('/:workspaceId/checklist/:itemId/toggle', toggleChecklistItem);
 router.delete('/:workspaceId/checklist/:itemId', deleteChecklistItem);
 router.delete('/:workspaceId/checklist/completed/clear', clearCompletedChecklistItems);
+router.post('/:workspaceId/checklist/rollover', rolloverIncompleteTasksToToday);
 
 // Recurring tasks routes
 router.get('/:workspaceId/recurring', getRecurringTasks);

@@ -108,6 +108,8 @@ export interface DailyChecklistItem {
   recurring_task_id?: number;
   created_at: Date;
   updated_at: Date;
+  is_rolled_over?: boolean;
+  original_date?: string;
 }
 
 export interface RecurringTask {
@@ -291,6 +293,17 @@ export const clearCompletedChecklistItems = async (
     params: { date },
     headers: getAuthHeaders(),
   });
+};
+
+export const rolloverIncompleteTasksToToday = async (
+  workspaceId: string
+): Promise<{ message: string; count: number; items: DailyChecklistItem[] }> => {
+  const response = await axios.post(
+    `${API_URL}/api/personal/${workspaceId}/checklist/rollover`,
+    {},
+    { headers: getAuthHeaders() }
+  );
+  return response.data;
 };
 
 // Recurring Tasks API
