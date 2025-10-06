@@ -198,7 +198,7 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
     const result = await pool.query(query, params);
 
     // Transform results to include user object
-    const messages = result.rows.map((row) => ({
+    const messages: any[] = result.rows.map((row) => ({
       id: row.id,
       workspaceId: row.workspace_id,
       channelId: row.channel_id,
@@ -212,6 +212,8 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       replyCount: parseInt(row.reply_count),
+      hasAttachments: false,
+      attachments: [] as any[],
       user: {
         id: row.user_id,
         username: row.username,
@@ -219,6 +221,42 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
         avatarUrl: getFullAvatarUrl(row.avatar_url),
       },
     }));
+
+    // Fetch attachments for all messages
+    if (messages.length > 0) {
+      const messageIds = messages.map(m => m.id);
+      const attachmentsResult = await pool.query(
+        `SELECT id, message_id, filename, original_filename, file_size, mime_type, created_at
+         FROM attachments
+         WHERE message_id = ANY($1)
+         ORDER BY created_at ASC`,
+        [messageIds]
+      );
+
+      // Group attachments by message_id
+      const attachmentsByMessage = new Map<string, any[]>();
+      for (const att of attachmentsResult.rows) {
+        if (!attachmentsByMessage.has(att.message_id)) {
+          attachmentsByMessage.set(att.message_id, []);
+        }
+        attachmentsByMessage.get(att.message_id)!.push({
+          id: att.id,
+          messageId: att.message_id,
+          filename: att.filename,
+          originalFilename: att.original_filename,
+          fileSize: parseInt(att.file_size),
+          mimeType: att.mime_type,
+          createdAt: att.created_at,
+        });
+      }
+
+      // Add attachments to messages
+      for (const message of messages) {
+        const attachments = attachmentsByMessage.get(message.id) || [];
+        message.attachments = attachments;
+        message.hasAttachments = attachments.length > 0;
+      }
+    }
 
     // Reverse to show oldest first
     messages.reverse();
@@ -414,7 +452,7 @@ export const getThreadReplies = async (req: AuthRequest, res: Response) => {
   }
 
     const parentRow = parentResult.rows[0];
-    const parentMessage = {
+    const parentMessage: any = {
       id: parentRow.id,
       workspaceId: parentRow.workspace_id,
       channelId: parentRow.channel_id,
@@ -429,6 +467,8 @@ export const getThreadReplies = async (req: AuthRequest, res: Response) => {
       lastReplyAt: parentRow.last_reply_at,
       createdAt: parentRow.created_at,
       updatedAt: parentRow.updated_at,
+      hasAttachments: false,
+      attachments: [] as any[],
       user: {
         id: parentRow.user_id,
         username: parentRow.username,
@@ -450,7 +490,7 @@ export const getThreadReplies = async (req: AuthRequest, res: Response) => {
       [messageId]
     );
 
-    const replies = repliesResult.rows.map((row) => ({
+    const replies: any[] = repliesResult.rows.map((row) => ({
       id: row.id,
       workspaceId: row.workspace_id,
       channelId: row.channel_id,
@@ -465,6 +505,8 @@ export const getThreadReplies = async (req: AuthRequest, res: Response) => {
       lastReplyAt: row.last_reply_at,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+      hasAttachments: false,
+      attachments: [] as any[],
       user: {
         id: row.user_id,
         username: row.username,
@@ -472,6 +514,47 @@ export const getThreadReplies = async (req: AuthRequest, res: Response) => {
         avatarUrl: getFullAvatarUrl(row.avatar_url),
       },
     }));
+
+    // Fetch attachments for all replies (including parent message)
+    const allMessageIds = [parentMessage.id, ...replies.map(r => r.id)];
+    if (allMessageIds.length > 0) {
+      const attachmentsResult = await pool.query(
+        `SELECT id, message_id, filename, original_filename, file_size, mime_type, created_at
+         FROM attachments
+         WHERE message_id = ANY($1)
+         ORDER BY created_at ASC`,
+        [allMessageIds]
+      );
+
+      // Group attachments by message_id
+      const attachmentsByMessage = new Map<string, any[]>();
+      for (const att of attachmentsResult.rows) {
+        if (!attachmentsByMessage.has(att.message_id)) {
+          attachmentsByMessage.set(att.message_id, []);
+        }
+        attachmentsByMessage.get(att.message_id)!.push({
+          id: att.id,
+          messageId: att.message_id,
+          filename: att.filename,
+          originalFilename: att.original_filename,
+          fileSize: parseInt(att.file_size),
+          mimeType: att.mime_type,
+          createdAt: att.created_at,
+        });
+      }
+
+      // Add attachments to parent message
+      const parentAttachments = attachmentsByMessage.get(parentMessage.id) || [];
+      parentMessage.attachments = parentAttachments;
+      parentMessage.hasAttachments = parentAttachments.length > 0;
+
+      // Add attachments to replies
+      for (const reply of replies) {
+        const attachments = attachmentsByMessage.get(reply.id) || [];
+        reply.attachments = attachments;
+        reply.hasAttachments = attachments.length > 0;
+      }
+    }
 
   res.json({
     parentMessage,
