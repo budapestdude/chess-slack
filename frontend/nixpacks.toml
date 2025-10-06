@@ -7,11 +7,12 @@ cmds = ["npm install"]
 [phases.build]
 cmds = [
   "rm -rf dist node_modules/.vite",
-  "npm run build"
+  "npm run build",
+  "cp serve.json dist/"
 ]
 
 [start]
-cmd = "npx serve dist -s -l $PORT"
+cmd = "cd dist && npx serve -s -l $PORT"
 
 [variables]
 NPM_CONFIG_PRODUCTION = "false"
