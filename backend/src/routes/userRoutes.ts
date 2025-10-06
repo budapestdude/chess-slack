@@ -5,6 +5,10 @@ import { upload } from '../middleware/upload';
 
 const router = Router();
 
+// Specific routes must come before generic routes
+// /me/avatar must be before /:userId/avatar to match correctly
+router.get('/me/avatar', authenticateToken, userController.getAvatar);
+
 // Public routes (no auth required for image loading in img tags)
 router.get('/:userId/avatar', userController.getUserAvatar);
 
@@ -17,9 +21,8 @@ router.get('/:userId/profile', userController.getUserProfile);
 // Update my profile
 router.put('/me/profile', userController.updateMyProfile);
 
-// Avatar management
+// Avatar upload (requires auth)
 router.post('/me/avatar', upload.single('avatar'), userController.uploadAvatar);
-router.get('/me/avatar', userController.getAvatar);
 
 // Set custom status
 router.put('/me/status', userController.setCustomStatus);
