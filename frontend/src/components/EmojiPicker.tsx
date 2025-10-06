@@ -11,7 +11,9 @@ interface EmojiPickerProps {
 
 export default function EmojiPicker({ onEmojiSelect }: EmojiPickerProps) {
   const [showPicker, setShowPicker] = useState(false);
+  const [position, setPosition] = useState<'top' | 'bottom'>('top');
   const pickerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -29,6 +31,19 @@ export default function EmojiPicker({ onEmojiSelect }: EmojiPickerProps) {
     };
   }, [showPicker]);
 
+  // Determine best position when picker opens
+  useEffect(() => {
+    if (showPicker && buttonRef.current) {
+      const buttonRect = buttonRef.current.getBoundingClientRect();
+      const pickerHeight = 400;
+      const spaceAbove = buttonRect.top;
+      const spaceBelow = window.innerHeight - buttonRect.bottom;
+
+      // Show below if not enough space above, or if more space below
+      setPosition(spaceAbove < pickerHeight && spaceBelow > spaceAbove ? 'bottom' : 'top');
+    }
+  }, [showPicker]);
+
   const handleEmojiClick = (emojiData: EmojiClickData) => {
     onEmojiSelect(emojiData.emoji);
     setShowPicker(false);
@@ -37,6 +52,7 @@ export default function EmojiPicker({ onEmojiSelect }: EmojiPickerProps) {
   return (
     <div className="relative" ref={pickerRef}>
       <button
+        ref={buttonRef}
         onClick={() => setShowPicker(!showPicker)}
         className="p-1 hover:bg-gray-200 rounded transition-colors"
         title="Add reaction"
@@ -45,7 +61,11 @@ export default function EmojiPicker({ onEmojiSelect }: EmojiPickerProps) {
       </button>
 
       {showPicker && (
-        <div className="absolute bottom-full right-0 mb-2 z-50 shadow-xl">
+        <div
+          className={`absolute right-0 z-50 shadow-xl ${
+            position === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'
+          }`}
+        >
           <Suspense fallback={
             <div className="flex items-center justify-center bg-white dark:bg-gray-800 rounded-lg shadow-lg" style={{ width: 350, height: 400 }}>
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
