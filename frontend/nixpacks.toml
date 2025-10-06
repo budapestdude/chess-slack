@@ -8,11 +8,11 @@ cmds = ["npm install"]
 cmds = [
   "rm -rf dist node_modules/.vite",
   "npm run build",
-  "cp serve.json dist/"
+  "cp serve.json dist/serve.json"
 ]
 
 [start]
-cmd = "cd dist && npx serve -s -l $PORT"
+cmd = "cd dist && npx serve . -s -l $PORT"
 
 [variables]
 NPM_CONFIG_PRODUCTION = "false"
