@@ -830,15 +830,21 @@ const MindMapTool: React.FC = () => {
       )}
 
       {/* SVG for connections */}
-      <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 5 }}>
-        {nodes.map(node =>
-          node.children.map(childId => {
+      <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 5, width: '100%', height: '100%' }}>
+        {nodes.map(node => {
+          console.log('Node:', node.id, 'Children:', node.children);
+          return node.children.map(childId => {
             const child = nodes.find(n => n.id === childId);
-            if (!child) return null;
+            if (!child) {
+              console.log('Child not found:', childId);
+              return null;
+            }
 
             const nodeCenter = getNodeCenter(node);
             const childCenter = getNodeCenter(child);
+            console.log('Drawing line from', nodeCenter, 'to', childCenter);
             const path = getConnectionPath(nodeCenter.x, nodeCenter.y, childCenter.x, childCenter.y, connectionStyle);
+            console.log('Path:', path);
 
             return (
               <g key={`${node.id}-${childId}`}>
@@ -859,10 +865,13 @@ const MindMapTool: React.FC = () => {
                   fill="none"
                   strokeLinecap="round"
                 />
+                {/* Debug circles at connection points */}
+                <circle cx={nodeCenter.x} cy={nodeCenter.y} r="8" fill="red" opacity="0.5" />
+                <circle cx={childCenter.x} cy={childCenter.y} r="8" fill="blue" opacity="0.5" />
               </g>
             );
-          })
-        )}
+          });
+        })}
       </svg>
 
       {/* Nodes */}
