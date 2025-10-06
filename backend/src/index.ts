@@ -157,6 +157,16 @@ app.use('/api/personal', personalRoutes);
 app.use('/api/dms', dmRoutes);
 app.use('/api/users', userRoutes);
 
+// Helper to transform relative avatar URLs to full URLs for cross-origin compatibility
+const getFullAvatarUrl = (avatarUrl: string | null): string | null => {
+  if (!avatarUrl) return null;
+  if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
+    return avatarUrl; // Already a full URL
+  }
+  const baseUrl = process.env.API_BASE_URL || process.env.BACKEND_URL || '';
+  return baseUrl ? `${baseUrl}${avatarUrl}` : avatarUrl;
+};
+
 // WebSocket authentication middleware
 io.use(async (socket, next) => {
   try {
@@ -220,7 +230,7 @@ io.on('connection', async (socket) => {
         userId: user.id,
         username: user.username,
         displayName: user.display_name,
-        avatarUrl: user.avatar_url,
+        avatarUrl: getFullAvatarUrl(user.avatar_url),
         status: 'online',
       });
     });
@@ -415,7 +425,7 @@ io.on('connection', async (socket) => {
           userId: user.id,
           username: user.username,
           displayName: user.display_name,
-          avatarUrl: user.avatar_url,
+          avatarUrl: getFullAvatarUrl(user.avatar_url),
           status,
         });
       });
@@ -450,7 +460,7 @@ io.on('connection', async (socket) => {
           userId: user.id,
           username: user.username,
           displayName: user.display_name,
-          avatarUrl: user.avatar_url,
+          avatarUrl: getFullAvatarUrl(user.avatar_url),
           status: 'offline',
         });
       });
