@@ -7,6 +7,7 @@ import { io } from '../index';
 import { NotFoundError, BadRequestError } from '../errors';
 import logger from '../utils/logger';
 import { validateFileType } from '../middleware/upload';
+import { uploadFile, getFile } from '../utils/storage';
 
 // Helper to transform relative avatar URLs to full URLs for cross-origin compatibility
 const getFullAvatarUrl = (avatarUrl: string | null): string | null => {
@@ -317,40 +318,23 @@ export const uploadAvatar = async (req: AuthRequest, res: Response) => {
     throw new BadRequestError('Avatar file size must be less than 5MB');
   }
 
-  // Create user-specific avatar directory
-  const avatarDir = path.join('uploads', 'avatars', userId);
-  try {
-    await fs.mkdir(avatarDir, { recursive: true });
-  } catch (error: any) {
-    logger.error('Failed to create avatar directory', { avatarDir, error: error.message });
-    throw new BadRequestError('Failed to create avatar directory');
-  }
+  // Read file buffer
+  const fileBuffer = await fs.readFile(file.path);
 
-  // Delete old avatar if exists
-  const oldAvatarResult = await pool.query(
-    'SELECT avatar_url FROM users WHERE id = $1',
-    [userId]
-  );
-
-  if (oldAvatarResult.rows[0]?.avatar_url) {
-    const oldAvatarPath = oldAvatarResult.rows[0].avatar_url.replace('/api/users/me/avatar', '');
-    const fullOldPath = path.join(avatarDir, path.basename(oldAvatarPath));
-    await fs.unlink(fullOldPath).catch(() => {
-      logger.debug('Old avatar file not found or already deleted', { path: fullOldPath });
-    });
-  }
-
-  // Move file to avatar directory with unique name
+  // Upload to storage (S3 or local)
   const ext = path.extname(file.originalname);
-  const filename = `avatar-${Date.now()}${ext}`;
-  const newPath = path.join(avatarDir, filename);
+  const storageKey = `avatars/${userId}/avatar-${Date.now()}${ext}`;
 
-  // Use copyFile + unlink instead of rename for cross-filesystem compatibility
+  let avatarUrl: string;
   try {
-    await fs.copyFile(file.path, newPath);
-    logger.debug('Avatar file copied successfully', { from: file.path, to: newPath });
+    avatarUrl = await uploadFile({
+      buffer: fileBuffer,
+      key: storageKey,
+      contentType: file.mimetype,
+    });
+    logger.info('Avatar uploaded to storage', { userId, storageKey, avatarUrl });
   } catch (error: any) {
-    logger.error('Failed to copy avatar file', { from: file.path, to: newPath, error: error.message });
+    logger.error('Failed to upload avatar to storage', { userId, error: error.message });
     await fs.unlink(file.path).catch(() => {});
     throw new BadRequestError('Failed to save avatar file');
   }
@@ -359,12 +343,6 @@ export const uploadAvatar = async (req: AuthRequest, res: Response) => {
   await fs.unlink(file.path).catch((error) => {
     logger.debug('Temp file cleanup - file may already be deleted', { path: file.path });
   });
-
-  // Update user avatar_url in database
-  // Use full URL for cross-origin compatibility (Railway deployment)
-  const baseUrl = process.env.API_BASE_URL || process.env.BACKEND_URL || '';
-  const avatarPath = `/api/users/${userId}/avatar?t=${Date.now()}`;
-  const avatarUrl = baseUrl ? `${baseUrl}${avatarPath}` : avatarPath;
 
   const result = await pool.query(
     `UPDATE users
@@ -408,7 +386,7 @@ export const uploadAvatar = async (req: AuthRequest, res: Response) => {
 export const getAvatar = async (req: AuthRequest, res: Response) => {
   const userId = req.userId!;
 
-  // Get user's avatar path from database
+  // Get user's avatar URL from database
   const result = await pool.query(
     'SELECT avatar_url FROM users WHERE id = $1',
     [userId]
@@ -423,45 +401,47 @@ export const getAvatar = async (req: AuthRequest, res: Response) => {
     throw new NotFoundError('Avatar not found');
   }
 
-  // Find the actual file in the avatar directory
-  const avatarDir = path.join('uploads', 'avatars', userId);
+  // If S3 URL, redirect to it
+  if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
+    return res.redirect(avatarUrl);
+  }
+
+  // Otherwise, serve from local storage
+  // Extract storage key from URL path
+  const storageKey = avatarUrl.replace(/^\/uploads\//, '');
 
   try {
-    const files = await fs.readdir(avatarDir);
-    const avatarFile = files.find(f => f.startsWith('avatar-'));
+    const fileBuffer = await getFile(storageKey);
 
-    if (!avatarFile) {
+    if (!fileBuffer) {
       throw new NotFoundError('Avatar file not found');
     }
 
-    const avatarPath = path.join(avatarDir, avatarFile);
+    // Determine content type from file extension
+    const ext = path.extname(storageKey).toLowerCase();
+    const contentTypeMap: Record<string, string> = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+    };
 
-    // Security: Ensure the path is within avatar directory
-    const resolvedPath = path.resolve(avatarPath);
-    const uploadsDir = path.resolve('uploads');
+    const contentType = contentTypeMap[ext] || 'application/octet-stream';
 
-    if (!resolvedPath.startsWith(uploadsDir)) {
-      logger.error('Path traversal attempt detected in avatar fetch', {
-        userId,
-        resolvedPath
-      });
-      throw new BadRequestError('Access denied');
-    }
-
-    // Send the file
-    res.sendFile(resolvedPath);
+    res.set('Content-Type', contentType);
+    res.set('Cache-Control', 'public, max-age=86400'); // Cache for 1 day
+    res.send(fileBuffer);
   } catch (error: any) {
-    if (error.code === 'ENOENT') {
-      throw new NotFoundError('Avatar file not found');
-    }
-    throw error;
+    logger.error('Error fetching avatar', { userId, error: error.message });
+    throw new NotFoundError('Avatar file not found');
   }
 };
 
 export const getUserAvatar = async (req: AuthRequest, res: Response) => {
   const { userId } = req.params;
 
-  // Get user's avatar path from database
+  // Get user's avatar URL from database
   const result = await pool.query(
     'SELECT avatar_url FROM users WHERE id = $1',
     [userId]
@@ -476,37 +456,39 @@ export const getUserAvatar = async (req: AuthRequest, res: Response) => {
     throw new NotFoundError('Avatar not found');
   }
 
-  // Find the actual file in the avatar directory
-  const avatarDir = path.join('uploads', 'avatars', userId);
+  // If S3 URL, redirect to it
+  if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
+    return res.redirect(avatarUrl);
+  }
+
+  // Otherwise, serve from local storage
+  // Extract storage key from URL path
+  const storageKey = avatarUrl.replace(/^\/uploads\//, '');
 
   try {
-    const files = await fs.readdir(avatarDir);
-    const avatarFile = files.find(f => f.startsWith('avatar-'));
+    const fileBuffer = await getFile(storageKey);
 
-    if (!avatarFile) {
+    if (!fileBuffer) {
       throw new NotFoundError('Avatar file not found');
     }
 
-    const avatarPath = path.join(avatarDir, avatarFile);
+    // Determine content type from file extension
+    const ext = path.extname(storageKey).toLowerCase();
+    const contentTypeMap: Record<string, string> = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+    };
 
-    // Security: Ensure the path is within avatar directory
-    const resolvedPath = path.resolve(avatarPath);
-    const uploadsDir = path.resolve('uploads');
+    const contentType = contentTypeMap[ext] || 'application/octet-stream';
 
-    if (!resolvedPath.startsWith(uploadsDir)) {
-      logger.error('Path traversal attempt detected in avatar fetch', {
-        userId,
-        resolvedPath
-      });
-      throw new BadRequestError('Access denied');
-    }
-
-    // Send the file
-    res.sendFile(resolvedPath);
+    res.set('Content-Type', contentType);
+    res.set('Cache-Control', 'public, max-age=86400'); // Cache for 1 day
+    res.send(fileBuffer);
   } catch (error: any) {
-    if (error.code === 'ENOENT') {
-      throw new NotFoundError('Avatar file not found');
-    }
-    throw error;
+    logger.error('Error fetching avatar', { userId, error: error.message });
+    throw new NotFoundError('Avatar file not found');
   }
 };
