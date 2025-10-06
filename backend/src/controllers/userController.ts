@@ -363,7 +363,7 @@ export const uploadAvatar = async (req: AuthRequest, res: Response) => {
   // Update user avatar_url in database
   // Use full URL for cross-origin compatibility (Railway deployment)
   const baseUrl = process.env.API_BASE_URL || process.env.BACKEND_URL || '';
-  const avatarPath = `/api/users/me/avatar?t=${Date.now()}`;
+  const avatarPath = `/api/users/${userId}/avatar?t=${Date.now()}`;
   const avatarUrl = baseUrl ? `${baseUrl}${avatarPath}` : avatarPath;
 
   const result = await pool.query(
@@ -407,6 +407,59 @@ export const uploadAvatar = async (req: AuthRequest, res: Response) => {
 
 export const getAvatar = async (req: AuthRequest, res: Response) => {
   const userId = req.userId!;
+
+  // Get user's avatar path from database
+  const result = await pool.query(
+    'SELECT avatar_url FROM users WHERE id = $1',
+    [userId]
+  );
+
+  if (result.rows.length === 0) {
+    throw new NotFoundError('User not found');
+  }
+
+  const avatarUrl = result.rows[0].avatar_url;
+  if (!avatarUrl) {
+    throw new NotFoundError('Avatar not found');
+  }
+
+  // Find the actual file in the avatar directory
+  const avatarDir = path.join('uploads', 'avatars', userId);
+
+  try {
+    const files = await fs.readdir(avatarDir);
+    const avatarFile = files.find(f => f.startsWith('avatar-'));
+
+    if (!avatarFile) {
+      throw new NotFoundError('Avatar file not found');
+    }
+
+    const avatarPath = path.join(avatarDir, avatarFile);
+
+    // Security: Ensure the path is within avatar directory
+    const resolvedPath = path.resolve(avatarPath);
+    const uploadsDir = path.resolve('uploads');
+
+    if (!resolvedPath.startsWith(uploadsDir)) {
+      logger.error('Path traversal attempt detected in avatar fetch', {
+        userId,
+        resolvedPath
+      });
+      throw new BadRequestError('Access denied');
+    }
+
+    // Send the file
+    res.sendFile(resolvedPath);
+  } catch (error: any) {
+    if (error.code === 'ENOENT') {
+      throw new NotFoundError('Avatar file not found');
+    }
+    throw error;
+  }
+};
+
+export const getUserAvatar = async (req: AuthRequest, res: Response) => {
+  const { userId } = req.params;
 
   // Get user's avatar path from database
   const result = await pool.query(

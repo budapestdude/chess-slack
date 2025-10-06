@@ -17,6 +17,7 @@ router.put('/me/profile', userController.updateMyProfile);
 // Avatar management
 router.post('/me/avatar', upload.single('avatar'), userController.uploadAvatar);
 router.get('/me/avatar', userController.getAvatar);
+router.get('/:userId/avatar', userController.getUserAvatar);
 
 // Set custom status
 router.put('/me/status', userController.setCustomStatus);
