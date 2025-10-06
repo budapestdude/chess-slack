@@ -5,7 +5,10 @@ import { upload } from '../middleware/upload';
 
 const router = Router();
 
-// All user routes require authentication
+// Public routes (no auth required for image loading in img tags)
+router.get('/:userId/avatar', userController.getUserAvatar);
+
+// All other user routes require authentication
 router.use(authenticateToken);
 
 // Get user profile
@@ -17,7 +20,6 @@ router.put('/me/profile', userController.updateMyProfile);
 // Avatar management
 router.post('/me/avatar', upload.single('avatar'), userController.uploadAvatar);
 router.get('/me/avatar', userController.getAvatar);
-router.get('/:userId/avatar', userController.getUserAvatar);
 
 // Set custom status
 router.put('/me/status', userController.setCustomStatus);
