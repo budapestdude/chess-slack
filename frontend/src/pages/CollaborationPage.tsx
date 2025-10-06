@@ -587,7 +587,7 @@ const MindMapTool: React.FC = () => {
   };
 
   const handleMouseDown = (e: React.MouseEvent, nodeId: string) => {
-    if (editingNodeId) return;
+    if (editingNodeId || connectionMode) return;
 
     const node = nodes.find(n => n.id === nodeId);
     if (!node) return;
@@ -600,7 +600,7 @@ const MindMapTool: React.FC = () => {
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!draggedNodeId) return;
+    if (!draggedNodeId || connectionMode) return;
 
     const newX = e.clientX - dragOffset.x;
     const newY = e.clientY - dragOffset.y;
@@ -868,16 +868,12 @@ const MindMapTool: React.FC = () => {
               top: node.y,
               zIndex: isSelected || isConnecting ? 20 : 10
             }}
-            onMouseDown={(e) => {
-              e.stopPropagation();
-              if (!connectionMode) {
-                setSelectedNodeId(node.id);
-              }
-            }}
             onClick={(e) => {
               e.stopPropagation();
               if (connectionMode) {
                 handleNodeClick(node.id);
+              } else {
+                setSelectedNodeId(node.id);
               }
             }}
           >
@@ -894,11 +890,7 @@ const MindMapTool: React.FC = () => {
                 borderColor: isConnecting ? '#3B82F6' : (isSelected ? '#8B5CF6' : node.color),
                 fontSize: `${node.fontSize || 14}px`
               }}
-              onMouseDown={(e) => {
-                if (!connectionMode) {
-                  handleMouseDown(e, node.id);
-                }
-              }}
+              onMouseDown={(e) => handleMouseDown(e, node.id)}
               onDoubleClick={() => !connectionMode && setEditingNodeId(node.id)}
             >
               <div className={isDiamond ? 'transform -rotate-45' : ''}>
