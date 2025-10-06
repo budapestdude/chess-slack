@@ -43,7 +43,7 @@ export const attachmentService = {
     attachmentId: string
   ): string {
     const token = localStorage.getItem('token');
-    const baseURL = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api`;
+    const baseURL = `${(import.meta.env.VITE_API_URL || 'http://localhost:3001').replace(/\/+$/, '')}/api`;
     return `${baseURL}/workspaces/${workspaceId}/channels/${channelId}/messages/${messageId}/attachments/${attachmentId}/download?token=${token}`;
   },
 
