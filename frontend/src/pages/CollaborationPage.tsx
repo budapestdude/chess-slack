@@ -20,7 +20,9 @@ import {
   Redo,
   Save,
   Sparkles,
+  FolderOpen,
 } from 'lucide-react';
+import { api } from '../services/api';
 
 /**
  * CollaborationPage Component
@@ -479,6 +481,17 @@ const MindMapTool: React.FC = () => {
   const [connectionMode, setConnectionMode] = useState(false);
   const [connectingFromId, setConnectingFromId] = useState<string | null>(null);
 
+  // Save/Load state
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showLoadModal, setShowLoadModal] = useState(false);
+  const [currentMindMapId, setCurrentMindMapId] = useState<string | null>(null);
+  const [mindMapName, setMindMapName] = useState('');
+  const [mindMapDescription, setMindMapDescription] = useState('');
+  const [mindMapList, setMindMapList] = useState<any[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const { workspaceId } = useParams<{ workspaceId: string }>();
   const theme = themes[currentTheme];
   const colors = theme.colors;
 
@@ -614,6 +627,97 @@ const MindMapTool: React.FC = () => {
     setDraggedNodeId(null);
   };
 
+  // Save mind map
+  const saveMindMap = async () => {
+    if (!workspaceId || !mindMapName.trim()) return;
+
+    setIsSaving(true);
+    try {
+      const mindMapData = {
+        name: mindMapName,
+        description: mindMapDescription,
+        data: {
+          nodes,
+          theme: currentTheme,
+          connectionStyle,
+          showGrid,
+        },
+      };
+
+      if (currentMindMapId) {
+        // Update existing
+        await api.put(`/workspaces/${workspaceId}/mind-maps/${currentMindMapId}`, mindMapData);
+      } else {
+        // Create new
+        const response = await api.post(`/workspaces/${workspaceId}/mind-maps`, mindMapData);
+        setCurrentMindMapId(response.data.id);
+      }
+
+      setShowSaveModal(false);
+      alert('Mind map saved successfully!');
+    } catch (error) {
+      console.error('Failed to save mind map:', error);
+      alert('Failed to save mind map');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Load mind maps list
+  const loadMindMapsList = async () => {
+    if (!workspaceId) return;
+
+    setIsLoading(true);
+    try {
+      const response = await api.get(`/workspaces/${workspaceId}/mind-maps`);
+      setMindMapList(response.data.mindMaps || []);
+      setShowLoadModal(true);
+    } catch (error) {
+      console.error('Failed to load mind maps:', error);
+      alert('Failed to load mind maps');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Load specific mind map
+  const loadMindMap = async (mindMapId: string) => {
+    if (!workspaceId) return;
+
+    setIsLoading(true);
+    try {
+      const response = await api.get(`/workspaces/${workspaceId}/mind-maps/${mindMapId}`);
+      const data = response.data;
+
+      setNodes(data.data.nodes);
+      setCurrentTheme(data.data.theme || 'default');
+      setConnectionStyle(data.data.connectionStyle || 'curved');
+      setShowGrid(data.data.showGrid !== undefined ? data.data.showGrid : true);
+      setCurrentMindMapId(data.id);
+      setMindMapName(data.name);
+      setMindMapDescription(data.description || '');
+      setShowLoadModal(false);
+    } catch (error) {
+      console.error('Failed to load mind map:', error);
+      alert('Failed to load mind map');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Delete mind map
+  const deleteMindMap = async (mindMapId: string) => {
+    if (!workspaceId || !confirm('Are you sure you want to delete this mind map?')) return;
+
+    try {
+      await api.delete(`/workspaces/${workspaceId}/mind-maps/${mindMapId}`);
+      setMindMapList(prev => prev.filter(m => m.id !== mindMapId));
+    } catch (error) {
+      console.error('Failed to delete mind map:', error);
+      alert('Failed to delete mind map');
+    }
+  };
+
   // Generate connection path based on style
   const getConnectionPath = (x1: number, y1: number, x2: number, y2: number, style: ConnectionStyle): string => {
     const midX = (x1 + x2) / 2;
@@ -689,6 +793,21 @@ const MindMapTool: React.FC = () => {
     >
       {/* Toolbar */}
       <div className="absolute top-4 right-4 z-20 flex gap-2">
+        <button
+          onClick={() => setShowSaveModal(true)}
+          className="px-4 py-2 bg-white rounded-lg shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
+        >
+          <Save className="w-5 h-5 text-green-600" />
+          <span className="font-medium">Save</span>
+        </button>
+        <button
+          onClick={loadMindMapsList}
+          disabled={isLoading}
+          className="px-4 py-2 bg-white rounded-lg shadow-lg hover:shadow-xl transition-all flex items-center gap-2 disabled:opacity-50"
+        >
+          <FolderOpen className="w-5 h-5 text-blue-600" />
+          <span className="font-medium">Load</span>
+        </button>
         <button
           onClick={() => {
             setConnectionMode(!connectionMode);
@@ -831,20 +950,14 @@ const MindMapTool: React.FC = () => {
 
       {/* SVG for connections */}
       <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 5, width: '100%', height: '100%' }}>
-        {nodes.map(node => {
-          console.log('Node:', node.id, 'Children:', node.children);
-          return node.children.map(childId => {
+        {nodes.map(node =>
+          node.children.map(childId => {
             const child = nodes.find(n => n.id === childId);
-            if (!child) {
-              console.log('Child not found:', childId);
-              return null;
-            }
+            if (!child) return null;
 
             const nodeCenter = getNodeCenter(node);
             const childCenter = getNodeCenter(child);
-            console.log('Drawing line from', nodeCenter, 'to', childCenter);
             const path = getConnectionPath(nodeCenter.x, nodeCenter.y, childCenter.x, childCenter.y, connectionStyle);
-            console.log('Path:', path);
 
             return (
               <g key={`${node.id}-${childId}`}>
@@ -865,13 +978,10 @@ const MindMapTool: React.FC = () => {
                   fill="none"
                   strokeLinecap="round"
                 />
-                {/* Debug circles at connection points */}
-                <circle cx={nodeCenter.x} cy={nodeCenter.y} r="8" fill="red" opacity="0.5" />
-                <circle cx={childCenter.x} cy={childCenter.y} r="8" fill="blue" opacity="0.5" />
               </g>
             );
-          });
-        })}
+          })
+        )}
       </svg>
 
       {/* Nodes */}
@@ -982,6 +1092,113 @@ const MindMapTool: React.FC = () => {
           </div>
         );
       })}
+
+      {/* Save Modal */}
+      {showSaveModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-2xl p-6 w-full max-w-md">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Save Mind Map</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Name *</label>
+                <input
+                  type="text"
+                  value={mindMapName}
+                  onChange={(e) => setMindMapName(e.target.value)}
+                  placeholder="Enter mind map name"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <textarea
+                  value={mindMapDescription}
+                  onChange={(e) => setMindMapDescription(e.target.value)}
+                  placeholder="Optional description"
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={saveMindMap}
+                disabled={isSaving || !mindMapName.trim()}
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              >
+                {isSaving ? 'Saving...' : (currentMindMapId ? 'Update' : 'Save')}
+              </button>
+              <button
+                onClick={() => setShowSaveModal(false)}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-900 rounded-lg hover:bg-gray-300 font-medium"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Load Modal */}
+      {showLoadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-2xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Load Mind Map</h3>
+            {mindMapList.length === 0 ? (
+              <div className="text-center py-12">
+                <FolderOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500">No saved mind maps yet</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {mindMapList.map((mindMap) => (
+                  <div
+                    key={mindMap.id}
+                    className="border border-gray-200 rounded-lg p-4 hover:border-blue-500 transition-colors"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-gray-900">{mindMap.name}</h4>
+                        {mindMap.description && (
+                          <p className="text-sm text-gray-600 mt-1">{mindMap.description}</p>
+                        )}
+                        <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                          <span>By {mindMap.createdBy?.displayName || mindMap.createdBy?.username}</span>
+                          <span>{new Date(mindMap.updatedAt).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 ml-4">
+                        <button
+                          onClick={() => loadMindMap(mindMap.id)}
+                          disabled={isLoading}
+                          className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 text-sm"
+                        >
+                          Load
+                        </button>
+                        <button
+                          onClick={() => deleteMindMap(mindMap.id)}
+                          className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowLoadModal(false)}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-900 rounded-lg hover:bg-gray-300 font-medium"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
