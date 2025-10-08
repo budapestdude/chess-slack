@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import pool from '../database/db';
-import { AuthRequest } from '../middleware/auth';
+import { AuthRequest } from '../types';
 
 // ===========================================================================
 // COMPANIES
