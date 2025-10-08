@@ -22,7 +22,28 @@ import {
   X,
   TrendingUp,
   AlertCircle,
+  Search,
+  Filter,
+  BarChart3,
 } from 'lucide-react';
+import {
+  CRMContact,
+  CRMCompany,
+  CRMDeal,
+  CRMStats,
+  getContacts,
+  createContact,
+  updateContact,
+  deleteContact,
+  getCompanies,
+  createCompany,
+  getDeals,
+  createDeal,
+  updateDeal,
+  deleteDeal,
+  getCRMStats,
+} from '../services/crm';
+import CRMTool from '../components/CRMTool';
 
 /**
  * BusinessPage Component
@@ -49,9 +70,11 @@ const BusinessPage: React.FC = () => {
   ];
 
   const renderTool = (toolId: string) => {
+    if (!workspaceId) return null;
+
     switch (toolId) {
       case 'crm':
-        return <CRMTool />;
+        return <CRMTool workspaceId={workspaceId} />;
       case 'invoicing':
         return <InvoicingTool />;
       case 'expenses':
@@ -149,289 +172,6 @@ const BusinessPage: React.FC = () => {
   );
 };
 
-// ============================================================================
-// CRM Tool
-// ============================================================================
-
-interface Contact {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  company: string;
-  role: string;
-  tags: string[];
-  notes: string;
-  deals: Deal[];
-  createdAt: Date;
-}
-
-interface Deal {
-  id: string;
-  contactId: string;
-  title: string;
-  value: number;
-  stage: 'lead' | 'qualified' | 'proposal' | 'negotiation' | 'closed-won' | 'closed-lost';
-  probability: number;
-  expectedCloseDate: Date;
-  notes: string;
-}
-
-const CRMTool: React.FC = () => {
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [deals, setDeals] = useState<Deal[]>([]);
-  const [editingContact, setEditingContact] = useState<Contact | null>(null);
-  const [view, setView] = useState<'contacts' | 'pipeline'>('contacts');
-
-  const createNewContact = () => {
-    const newContact: Contact = {
-      id: Date.now().toString(),
-      name: '',
-      email: '',
-      phone: '',
-      company: '',
-      role: '',
-      tags: [],
-      notes: '',
-      deals: [],
-      createdAt: new Date(),
-    };
-    setEditingContact(newContact);
-  };
-
-  const saveContact = () => {
-    if (!editingContact) return;
-
-    const exists = contacts.find(c => c.id === editingContact.id);
-    if (exists) {
-      setContacts(contacts.map(c => c.id === editingContact.id ? editingContact : c));
-    } else {
-      setContacts([editingContact, ...contacts]);
-    }
-    setEditingContact(null);
-  };
-
-  const deleteContact = (contactId: string) => {
-    setContacts(contacts.filter(c => c.id !== contactId));
-  };
-
-  const stageColors = {
-    lead: 'bg-gray-100 text-gray-700',
-    qualified: 'bg-blue-100 text-blue-700',
-    proposal: 'bg-purple-100 text-purple-700',
-    negotiation: 'bg-yellow-100 text-yellow-700',
-    'closed-won': 'bg-green-100 text-green-700',
-    'closed-lost': 'bg-red-100 text-red-700',
-  };
-
-  if (editingContact) {
-    return (
-      <div className="h-full bg-gray-50 overflow-y-auto">
-        <div className="max-w-4xl mx-auto p-8">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Contact Details</h2>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setEditingContact(null)}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={saveContact}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2"
-              >
-                <Save className="w-4 h-4" />
-                Save
-              </button>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-lg p-6 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Name *</label>
-                <input
-                  type="text"
-                  value={editingContact.name}
-                  onChange={(e) => setEditingContact({ ...editingContact, name: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  placeholder="John Doe"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                <input
-                  type="email"
-                  value={editingContact.email}
-                  onChange={(e) => setEditingContact({ ...editingContact, email: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  placeholder="john@example.com"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-                <input
-                  type="tel"
-                  value={editingContact.phone}
-                  onChange={(e) => setEditingContact({ ...editingContact, phone: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  placeholder="+1 234 567 8900"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Company</label>
-                <input
-                  type="text"
-                  value={editingContact.company}
-                  onChange={(e) => setEditingContact({ ...editingContact, company: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                  placeholder="Acme Corp"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
-              <input
-                type="text"
-                value={editingContact.role}
-                onChange={(e) => setEditingContact({ ...editingContact, role: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                placeholder="CEO, Developer, etc."
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Tags (comma-separated)</label>
-              <input
-                type="text"
-                value={editingContact.tags.join(', ')}
-                onChange={(e) => setEditingContact({ ...editingContact, tags: e.target.value.split(',').map(t => t.trim()).filter(Boolean) })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                placeholder="VIP, lead, customer"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
-              <textarea
-                value={editingContact.notes}
-                onChange={(e) => setEditingContact({ ...editingContact, notes: e.target.value })}
-                rows={4}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                placeholder="Additional notes..."
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="h-full bg-gray-50 overflow-y-auto">
-      <div className="max-w-6xl mx-auto p-8">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="text-3xl font-bold text-gray-900">CRM</h2>
-            <p className="text-gray-600 mt-1">Manage your contacts and deals</p>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setView('contacts')}
-              className={`px-4 py-2 rounded-lg font-medium ${view === 'contacts' ? 'bg-purple-600 text-white' : 'bg-white text-gray-700 border border-gray-300'}`}
-            >
-              Contacts
-            </button>
-            <button
-              onClick={() => setView('pipeline')}
-              className={`px-4 py-2 rounded-lg font-medium ${view === 'pipeline' ? 'bg-purple-600 text-white' : 'bg-white text-gray-700 border border-gray-300'}`}
-            >
-              Pipeline
-            </button>
-            <button
-              onClick={createNewContact}
-              className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 flex items-center gap-2"
-            >
-              <Plus className="w-5 h-5" />
-              New Contact
-            </button>
-          </div>
-        </div>
-
-        {view === 'contacts' ? (
-          contacts.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-lg shadow">
-              <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">No contacts yet. Add your first contact to get started!</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {contacts.map(contact => (
-                <div key={contact.id} className="bg-white rounded-lg shadow-lg p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <h3 className="text-xl font-semibold text-gray-900 mb-1">{contact.name}</h3>
-                      <p className="text-sm text-gray-600">{contact.role} {contact.company && `at ${contact.company}`}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setEditingContact(contact)}
-                        className="text-purple-600 hover:text-purple-700"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => deleteContact(contact.id)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 mb-4">
-                    {contact.email && (
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Mail className="w-4 h-4" />
-                        {contact.email}
-                      </div>
-                    )}
-                    {contact.phone && (
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Phone className="w-4 h-4" />
-                        {contact.phone}
-                      </div>
-                    )}
-                  </div>
-
-                  {contact.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {contact.tags.map((tag, idx) => (
-                        <span key={idx} className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )
-        ) : (
-          <div className="bg-white rounded-lg shadow-lg p-8">
-            <p className="text-center text-gray-500">Pipeline view - Track your deals through stages</p>
-            <p className="text-center text-sm text-gray-400 mt-2">Feature coming soon: Kanban board for deal tracking</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
 
 // ============================================================================
 // Invoicing Tool
