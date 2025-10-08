@@ -53,6 +53,8 @@ console.log('  - documentRoutes...');
 import documentRoutes from './routes/documentRoutes';
 console.log('  - mindMapRoutes...');
 import mindMapRoutes from './routes/mindMapRoutes';
+console.log('  - crmRoutes...');
+import crmRoutes from './routes/crmRoutes';
 console.log('✅ All routes imported');
 
 // import agentRoutes from './routes/agentRoutes';
@@ -157,6 +159,7 @@ app.use('/api/workspaces', uploadRoutes);
 app.use('/api/workspaces', documentRoutes);
 app.use('/api/workspaces', mindMapRoutes);
 app.use('/api/personal', personalRoutes);
+app.use('/api/crm', crmRoutes);
 app.use('/api/dms', dmRoutes);
 app.use('/api/users', userRoutes);
 
