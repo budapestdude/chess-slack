@@ -18,6 +18,7 @@ import { dmService, DMGroup } from '../services/dm';
 import { channelService } from '../services/channel';
 import { ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
 import ChannelHeader from '../components/ChannelHeader';
+import TournamentDashboard from '../components/TournamentDashboard';
 import toast from 'react-hot-toast';
 
 export default function WorkspacePage() {
@@ -31,6 +32,7 @@ export default function WorkspacePage() {
   const [showChannelBrowser, setShowChannelBrowser] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [currentDM, setCurrentDM] = useState<DMGroup | null>(null);
+  const [showTournamentDashboard, setShowTournamentDashboard] = useState(false);
 
   useEffect(() => {
     if (workspaceId) {
@@ -108,6 +110,11 @@ export default function WorkspacePage() {
         onBrowseChannels={() => setShowChannelBrowser(true)}
         onInviteUser={() => setShowInviteModal(true)}
         onToggleStar={handleToggleStar}
+        onTournamentClick={() => {
+          setShowTournamentDashboard(!showTournamentDashboard);
+          dispatch(setCurrentChannel(null));
+        }}
+        showTournamentDashboard={showTournamentDashboard}
       />
 
       <div className="flex-1 flex flex-col">
@@ -159,7 +166,9 @@ export default function WorkspacePage() {
         </div>
 
         <div className="flex-1 overflow-hidden">
-          {currentChannel ? (
+          {showTournamentDashboard && currentWorkspace.workspaceType === 'tournament' ? (
+            <TournamentDashboard workspaceId={workspaceId!} />
+          ) : currentChannel ? (
             <ChannelView channel={currentChannel} workspaceId={workspaceId!} />
           ) : currentDM ? (
             <DMView dmGroup={currentDM} workspaceId={workspaceId!} />

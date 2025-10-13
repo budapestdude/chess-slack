@@ -2,11 +2,12 @@ import api from './api';
 import { Workspace } from '../types';
 
 export const workspaceService = {
-  async createWorkspace(name: string, slug: string, description?: string): Promise<Workspace> {
+  async createWorkspace(name: string, slug: string, description?: string, workspaceType?: 'standard' | 'tournament'): Promise<Workspace> {
     const response = await api.post<Workspace>('/workspaces', {
       name,
       slug,
       description,
+      workspaceType: workspaceType || 'standard',
     });
     return response.data;
   },

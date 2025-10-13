@@ -15,6 +15,7 @@ export interface Workspace {
   description?: string;
   logoUrl?: string;
   ownerId: string;
+  workspaceType?: 'standard' | 'tournament';
   role?: string;
   createdAt: string;
   updatedAt: string;

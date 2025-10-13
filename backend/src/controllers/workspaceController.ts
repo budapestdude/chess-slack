@@ -9,6 +9,7 @@ const createWorkspaceSchema = z.object({
   name: z.string().min(1).max(255),
   slug: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/),
   description: z.string().optional(),
+  workspaceType: z.enum(['standard', 'tournament']).default('standard'),
 });
 
 const updateWorkspaceSchema = z.object({
@@ -18,7 +19,7 @@ const updateWorkspaceSchema = z.object({
 });
 
 export const createWorkspace = async (req: AuthRequest, res: Response) => {
-  const { name, slug, description } = createWorkspaceSchema.parse(req.body);
+  const { name, slug, description, workspaceType } = createWorkspaceSchema.parse(req.body);
     const userId = req.userId!;
 
     // Check if slug already exists
@@ -30,10 +31,10 @@ export const createWorkspace = async (req: AuthRequest, res: Response) => {
 
     // Create workspace
     const result = await pool.query(
-      `INSERT INTO workspaces (name, slug, description, owner_id)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, name, slug, description, logo_url, owner_id, created_at, updated_at`,
-      [name, slug, description || null, userId]
+      `INSERT INTO workspaces (name, slug, description, owner_id, workspace_type)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, name, slug, description, logo_url, owner_id, workspace_type, created_at, updated_at`,
+      [name, slug, description || null, userId, workspaceType]
     );
 
     const workspace = result.rows[0];
@@ -45,20 +46,40 @@ export const createWorkspace = async (req: AuthRequest, res: Response) => {
       [workspace.id, userId, 'owner']
     );
 
-    // Create default #general channel
-    const channelResult = await pool.query(
-      `INSERT INTO channels (workspace_id, name, description, is_private, created_by)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id`,
-      [workspace.id, 'general', 'General discussion', false, userId]
-    );
+    // Create channels based on workspace type
+    const channels = workspaceType === 'tournament'
+      ? [
+          { name: 'general', description: 'General discussion', isPrivate: false },
+          { name: 'announcements', description: 'Tournament announcements', isPrivate: false },
+          { name: 'pairings', description: 'Round pairings and schedules', isPrivate: false },
+          { name: 'results', description: 'Match results and standings', isPrivate: false },
+        ]
+      : [{ name: 'general', description: 'General discussion', isPrivate: false }];
 
-    // Add creator to general channel
-    await pool.query(
-      `INSERT INTO channel_members (channel_id, user_id, role)
-       VALUES ($1, $2, $3)`,
-      [channelResult.rows[0].id, userId, 'admin']
-    );
+    for (const channel of channels) {
+      const channelResult = await pool.query(
+        `INSERT INTO channels (workspace_id, name, description, is_private, created_by)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id`,
+        [workspace.id, channel.name, channel.description, channel.isPrivate, userId]
+      );
+
+      // Add creator to channel
+      await pool.query(
+        `INSERT INTO channel_members (channel_id, user_id, role)
+         VALUES ($1, $2, $3)`,
+        [channelResult.rows[0].id, userId, 'admin']
+      );
+    }
+
+    // If tournament workspace, create tournament config
+    if (workspaceType === 'tournament') {
+      await pool.query(
+        `INSERT INTO tournament_configs (workspace_id, pairing_system, allow_player_registration)
+         VALUES ($1, $2, $3)`,
+        [workspace.id, 'swiss', true]
+      );
+    }
 
     res.status(201).json({
       id: workspace.id,
@@ -67,6 +88,7 @@ export const createWorkspace = async (req: AuthRequest, res: Response) => {
       description: workspace.description,
       logoUrl: workspace.logo_url,
       ownerId: workspace.owner_id,
+      workspaceType: workspace.workspace_type,
       createdAt: workspace.created_at,
       updatedAt: workspace.updated_at,
     });
@@ -76,7 +98,7 @@ export const getWorkspaces = async (req: AuthRequest, res: Response) => {
   const userId = req.userId!;
 
     const result = await pool.query(
-      `SELECT w.id, w.name, w.slug, w.description, w.logo_url, w.owner_id,
+      `SELECT w.id, w.name, w.slug, w.description, w.logo_url, w.owner_id, w.workspace_type,
               wm.role, w.created_at, w.updated_at
        FROM workspaces w
        JOIN workspace_members wm ON w.id = wm.workspace_id
@@ -92,6 +114,7 @@ export const getWorkspaces = async (req: AuthRequest, res: Response) => {
       description: row.description,
       logoUrl: row.logo_url,
       ownerId: row.owner_id,
+      workspaceType: row.workspace_type,
       role: row.role,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -115,7 +138,7 @@ export const getWorkspace = async (req: AuthRequest, res: Response) => {
     }
 
     const result = await pool.query(
-      `SELECT id, name, slug, description, logo_url, owner_id, created_at, updated_at
+      `SELECT id, name, slug, description, logo_url, owner_id, workspace_type, created_at, updated_at
        FROM workspaces WHERE id = $1`,
       [workspaceId]
     );
@@ -133,6 +156,7 @@ export const getWorkspace = async (req: AuthRequest, res: Response) => {
       description: workspace.description,
       logoUrl: workspace.logo_url,
       ownerId: workspace.owner_id,
+      workspaceType: workspace.workspace_type,
       role: memberCheck.rows[0].role,
       createdAt: workspace.created_at,
       updatedAt: workspace.updated_at,

@@ -29,8 +29,8 @@ export const fetchWorkspace = createAsyncThunk(
 
 export const createWorkspace = createAsyncThunk(
   'workspace/create',
-  async (data: { name: string; slug: string; description?: string }) => {
-    return await workspaceService.createWorkspace(data.name, data.slug, data.description);
+  async (data: { name: string; slug: string; description?: string; workspaceType?: 'standard' | 'tournament' }) => {
+    return await workspaceService.createWorkspace(data.name, data.slug, data.description, data.workspaceType);
   }
 );
 

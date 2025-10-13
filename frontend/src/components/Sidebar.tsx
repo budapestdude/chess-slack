@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useState, useEffect } from 'react';
 import { RootState } from '../store';
 import { Workspace, Channel } from '../types';
-import { PlusIcon, HashtagIcon, LockClosedIcon, ChatBubbleLeftRightIcon, Cog6ToothIcon, MagnifyingGlassIcon, StarIcon, BellSlashIcon, UserPlusIcon, ArchiveBoxIcon, CpuChipIcon, ClipboardDocumentListIcon, CheckCircleIcon, DocumentTextIcon, WrenchScrewdriverIcon, LightBulbIcon, PencilSquareIcon, ChartBarIcon, DocumentDuplicateIcon, CalendarIcon, ClockIcon, MegaphoneIcon, BriefcaseIcon, UsersIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, HashtagIcon, LockClosedIcon, ChatBubbleLeftRightIcon, Cog6ToothIcon, MagnifyingGlassIcon, StarIcon, BellSlashIcon, UserPlusIcon, ArchiveBoxIcon, CpuChipIcon, ClipboardDocumentListIcon, CheckCircleIcon, DocumentTextIcon, WrenchScrewdriverIcon, LightBulbIcon, PencilSquareIcon, ChartBarIcon, DocumentDuplicateIcon, CalendarIcon, ClockIcon, MegaphoneIcon, BriefcaseIcon, UsersIcon, CurrencyDollarIcon, TrophyIcon } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import clsx from 'clsx';
 import { dmService, DMGroup } from '../services/dm';
@@ -21,6 +21,8 @@ interface SidebarProps {
   onBrowseChannels: () => void;
   onInviteUser?: () => void;
   onToggleStar: (channelId: string, isCurrentlyStarred: boolean) => void;
+  onTournamentClick?: () => void;
+  showTournamentDashboard?: boolean;
 }
 
 export default function Sidebar({
@@ -32,6 +34,8 @@ export default function Sidebar({
   onBrowseChannels,
   onInviteUser,
   onToggleStar,
+  onTournamentClick,
+  showTournamentDashboard = false,
 }: SidebarProps) {
   const { workspaceId, dmGroupId } = useParams();
   const navigate = useNavigate();
@@ -138,6 +142,24 @@ export default function Sidebar({
             window.location.reload();
           }}
         />
+      )}
+
+      {/* Tournament section (only for tournament workspaces) */}
+      {workspace.workspaceType === 'tournament' && onTournamentClick && (
+        <div className="p-4 border-b border-gray-700">
+          <button
+            onClick={onTournamentClick}
+            className={clsx(
+              'w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+              showTournamentDashboard
+                ? 'bg-primary-600 text-white'
+                : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+            )}
+          >
+            <TrophyIcon className="w-5 h-5" />
+            Tournament Dashboard
+          </button>
+        </div>
       )}
 
       {/* Channels section */}

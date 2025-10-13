@@ -14,6 +14,7 @@ export default function CreateWorkspaceModal({ onClose }: CreateWorkspaceModalPr
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [description, setDescription] = useState('');
+  const [workspaceType, setWorkspaceType] = useState<'standard' | 'tournament'>('standard');
   const [loading, setLoading] = useState(false);
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
@@ -34,7 +35,7 @@ export default function CreateWorkspaceModal({ onClose }: CreateWorkspaceModalPr
 
     try {
       const workspace = await dispatch(
-        createWorkspace({ name, slug, description: description || undefined })
+        createWorkspace({ name, slug, description: description || undefined, workspaceType })
       ).unwrap();
       toast.success('Workspace created successfully!');
       navigate(`/workspace/${workspace.id}`);
@@ -60,6 +61,42 @@ export default function CreateWorkspaceModal({ onClose }: CreateWorkspaceModalPr
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Workspace Type
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setWorkspaceType('standard')}
+                className={`p-4 border-2 rounded-lg text-left transition-all ${
+                  workspaceType === 'standard'
+                    ? 'border-primary-600 bg-primary-50'
+                    : 'border-gray-300 hover:border-gray-400'
+                }`}
+              >
+                <div className="font-semibold text-gray-900 mb-1">Standard</div>
+                <div className="text-xs text-gray-600">
+                  For teams and general collaboration
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setWorkspaceType('tournament')}
+                className={`p-4 border-2 rounded-lg text-left transition-all ${
+                  workspaceType === 'tournament'
+                    ? 'border-primary-600 bg-primary-50'
+                    : 'border-gray-300 hover:border-gray-400'
+                }`}
+              >
+                <div className="font-semibold text-gray-900 mb-1">Tournament</div>
+                <div className="text-xs text-gray-600">
+                  For organizing chess tournaments
+                </div>
+              </button>
+            </div>
+          </div>
+
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
               Workspace Name
