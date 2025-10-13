@@ -92,12 +92,18 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
     };
   }, [title, content, icon, coverImage]);
 
-  // Update local state when document prop changes
+  // Update local state when document prop changes (only on document ID change, not on every update)
   useEffect(() => {
+    // Only update if we're switching to a different document
     setTitle(document.title);
     setContent(document.content);
     setIcon(document.icon || '');
     setCoverImage(document.coverImageUrl || document.coverImage || '');
+
+    // Set the initial content in the contentEditable div
+    if (contentEditableRef.current && document.content) {
+      contentEditableRef.current.innerHTML = document.content;
+    }
   }, [document.id]);
 
   const handleAutoSave = async () => {
@@ -138,9 +144,33 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
     e.target.style.height = `${e.target.scrollHeight}px`;
   };
 
+  // Save and restore cursor position
+  const saveCursorPosition = () => {
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      return selection.getRangeAt(0);
+    }
+    return null;
+  };
+
+  const restoreCursorPosition = (range: Range | null) => {
+    if (range) {
+      const selection = window.getSelection();
+      if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    }
+  };
+
   const handleContentInput = () => {
     if (contentEditableRef.current) {
+      const range = saveCursorPosition();
       setContent(contentEditableRef.current.innerHTML);
+      // Restore cursor position after state update
+      requestAnimationFrame(() => {
+        restoreCursorPosition(range);
+      });
     }
   };
 
@@ -506,7 +536,6 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
               ref={contentEditableRef}
               contentEditable={canEdit}
               onInput={handleContentInput}
-              dangerouslySetInnerHTML={{ __html: content }}
               className={`
                 prose prose-lg max-w-none min-h-[400px] focus:outline-none
                 ${canEdit ? '' : 'cursor-not-allowed'}
