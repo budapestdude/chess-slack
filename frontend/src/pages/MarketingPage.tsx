@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import {
   Megaphone,
   Users,
@@ -138,13 +139,23 @@ const MarketingPage: React.FC = () => {
 
 // Email Campaigns Tool
 const EmailCampaignsTool: React.FC<{ workspaceId: string }> = ({ workspaceId }) => {
+  const handleNewCampaign = () => {
+    toast.success('Email campaign feature coming soon!', {
+      icon: '📧',
+      duration: 3000,
+    });
+  };
+
   return (
     <div className="p-6">
       <div className="max-w-5xl mx-auto">
         <div className="bg-white rounded-lg border-2 border-gray-200 p-8 mb-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-gray-900">Email Campaigns</h2>
-            <button className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700">
+            <button
+              onClick={handleNewCampaign}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+            >
               <Plus className="w-4 h-4" />
               New Campaign
             </button>
@@ -154,6 +165,12 @@ const EmailCampaignsTool: React.FC<{ workspaceId: string }> = ({ workspaceId }) 
             <Mail className="w-16 h-16 mx-auto mb-4 text-gray-300" />
             <p className="text-lg mb-2">No email campaigns yet</p>
             <p className="text-sm">Create email campaigns to keep participants informed</p>
+            <button
+              onClick={handleNewCampaign}
+              className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+            >
+              Get Started
+            </button>
           </div>
         </div>
 
@@ -178,13 +195,23 @@ const EmailCampaignsTool: React.FC<{ workspaceId: string }> = ({ workspaceId }) 
 
 // Social Media Tool
 const SocialMediaTool: React.FC<{ workspaceId: string }> = ({ workspaceId }) => {
+  const handleCreatePost = () => {
+    toast.success('Social media post feature coming soon!', {
+      icon: '📱',
+      duration: 3000,
+    });
+  };
+
   return (
     <div className="p-6">
       <div className="max-w-5xl mx-auto">
         <div className="bg-white rounded-lg border-2 border-gray-200 p-8">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-gray-900">Social Media Posts</h2>
-            <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+            <button
+              onClick={handleCreatePost}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            >
               <Plus className="w-4 h-4" />
               Create Post
             </button>
@@ -194,6 +221,12 @@ const SocialMediaTool: React.FC<{ workspaceId: string }> = ({ workspaceId }) => 
             <Share2 className="w-16 h-16 mx-auto mb-4 text-gray-300" />
             <p className="text-lg mb-2">No social posts yet</p>
             <p className="text-sm">Schedule posts to promote your tournament on social media</p>
+            <button
+              onClick={handleCreatePost}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            >
+              Get Started
+            </button>
           </div>
         </div>
       </div>
@@ -203,13 +236,23 @@ const SocialMediaTool: React.FC<{ workspaceId: string }> = ({ workspaceId }) => 
 
 // Graphics Tool
 const GraphicsTool: React.FC<{ workspaceId: string }> = ({ workspaceId }) => {
+  const handleNewDesign = () => {
+    toast.success('Graphics design feature coming soon!', {
+      icon: '🎨',
+      duration: 3000,
+    });
+  };
+
   return (
     <div className="p-6">
       <div className="max-w-5xl mx-auto">
         <div className="bg-white rounded-lg border-2 border-gray-200 p-8">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-gray-900">Graphics & Posters</h2>
-            <button className="flex items-center gap-2 px-4 py-2 bg-pink-600 text-white rounded-md hover:bg-pink-700">
+            <button
+              onClick={handleNewDesign}
+              className="flex items-center gap-2 px-4 py-2 bg-pink-600 text-white rounded-md hover:bg-pink-700 transition-colors"
+            >
               <Plus className="w-4 h-4" />
               New Design
             </button>
@@ -219,6 +262,12 @@ const GraphicsTool: React.FC<{ workspaceId: string }> = ({ workspaceId }) => {
             <Palette className="w-16 h-16 mx-auto mb-4 text-gray-300" />
             <p className="text-lg mb-2">No graphics yet</p>
             <p className="text-sm">Create posters, banners, and promotional graphics for your tournament</p>
+            <button
+              onClick={handleNewDesign}
+              className="mt-4 px-4 py-2 bg-pink-600 text-white rounded-md hover:bg-pink-700 transition-colors"
+            >
+              Get Started
+            </button>
           </div>
         </div>
       </div>
@@ -228,13 +277,23 @@ const GraphicsTool: React.FC<{ workspaceId: string }> = ({ workspaceId }) => {
 
 // Sponsorships Tool
 const SponsorshipsTool: React.FC<{ workspaceId: string }> = ({ workspaceId }) => {
+  const handleAddSponsor = () => {
+    toast.success('Sponsorship management feature coming soon!', {
+      icon: '🤝',
+      duration: 3000,
+    });
+  };
+
   return (
     <div className="p-6">
       <div className="max-w-5xl mx-auto">
         <div className="bg-white rounded-lg border-2 border-gray-200 p-8">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-gray-900">Sponsorships</h2>
-            <button className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+            <button
+              onClick={handleAddSponsor}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+            >
               <Plus className="w-4 h-4" />
               Add Sponsor
             </button>
@@ -244,6 +303,12 @@ const SponsorshipsTool: React.FC<{ workspaceId: string }> = ({ workspaceId }) =>
             <Handshake className="w-16 h-16 mx-auto mb-4 text-gray-300" />
             <p className="text-lg mb-2">No sponsors yet</p>
             <p className="text-sm">Track sponsors, partnerships, and sponsorship packages</p>
+            <button
+              onClick={handleAddSponsor}
+              className="mt-4 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+            >
+              Get Started
+            </button>
           </div>
         </div>
       </div>
