@@ -313,21 +313,23 @@ export default function Sidebar({
           )}
         </div>
 
-        {/* Personal section */}
-        <div className="p-4 border-t border-gray-700">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-semibold text-gray-300">Personal</h3>
+        {/* Personal section - Only for standard workspaces */}
+        {workspace.workspaceType !== 'tournament' && (
+          <div className="p-4 border-t border-gray-700">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-gray-300">Personal</h3>
+            </div>
+            <div className="space-y-1">
+              <button
+                onClick={() => navigate(`/workspace/${workspaceId}/personal`)}
+                className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
+              >
+                <CheckCircleIcon className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate text-sm">Habit Tracker</span>
+              </button>
+            </div>
           </div>
-          <div className="space-y-1">
-            <button
-              onClick={() => navigate(`/workspace/${workspaceId}/personal`)}
-              className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
-            >
-              <CheckCircleIcon className="w-4 h-4 flex-shrink-0" />
-              <span className="truncate text-sm">Habit Tracker</span>
-            </button>
-          </div>
-        </div>
+        )}
 
         {/* Knowledge section */}
         <div className="p-4 border-t border-gray-700">
@@ -382,10 +384,12 @@ export default function Sidebar({
           </div>
         </div>
 
-        {/* Meetings section */}
+        {/* Meetings section - Modified for workspace type */}
         <div className="p-4 border-t border-gray-700">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-semibold text-gray-300">Meetings</h3>
+            <h3 className="text-sm font-semibold text-gray-300">
+              {workspace.workspaceType === 'tournament' ? 'Events' : 'Meetings'}
+            </h3>
           </div>
           <div className="space-y-1">
             <button
@@ -393,7 +397,9 @@ export default function Sidebar({
               className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
             >
               <DocumentTextIcon className="w-4 h-4 flex-shrink-0" />
-              <span className="truncate text-sm">Meeting Notes</span>
+              <span className="truncate text-sm">
+                {workspace.workspaceType === 'tournament' ? 'Event Notes' : 'Meeting Notes'}
+              </span>
             </button>
             <button
               onClick={() => navigate(`/workspace/${workspaceId}/meetings?tool=calendar`)}
@@ -402,20 +408,24 @@ export default function Sidebar({
               <CalendarIcon className="w-4 h-4 flex-shrink-0" />
               <span className="truncate text-sm">Calendar</span>
             </button>
-            <button
-              onClick={() => navigate(`/workspace/${workspaceId}/meetings?tool=standup`)}
-              className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
-            >
-              <MegaphoneIcon className="w-4 h-4 flex-shrink-0" />
-              <span className="truncate text-sm">Standup Bot</span>
-            </button>
-            <button
-              onClick={() => navigate(`/workspace/${workspaceId}/meetings?tool=decisions`)}
-              className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
-            >
-              <LightBulbIcon className="w-4 h-4 flex-shrink-0" />
-              <span className="truncate text-sm">Decision Log</span>
-            </button>
+            {workspace.workspaceType !== 'tournament' && (
+              <>
+                <button
+                  onClick={() => navigate(`/workspace/${workspaceId}/meetings?tool=standup`)}
+                  className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
+                >
+                  <MegaphoneIcon className="w-4 h-4 flex-shrink-0" />
+                  <span className="truncate text-sm">Standup Bot</span>
+                </button>
+                <button
+                  onClick={() => navigate(`/workspace/${workspaceId}/meetings?tool=decisions`)}
+                  className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
+                >
+                  <LightBulbIcon className="w-4 h-4 flex-shrink-0" />
+                  <span className="truncate text-sm">Decision Log</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -435,65 +445,108 @@ export default function Sidebar({
           </div>
         </div>
 
-        {/* Business section */}
-        <div className="p-4 border-t border-gray-700">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-semibold text-gray-300">Business</h3>
+        {/* Business section - Only for standard workspaces */}
+        {workspace.workspaceType !== 'tournament' && (
+          <div className="p-4 border-t border-gray-700">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-gray-300">Business</h3>
+            </div>
+            <div className="space-y-1">
+              <button
+                onClick={() => navigate(`/workspace/${workspaceId}/business?tool=crm`)}
+                className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
+              >
+                <UsersIcon className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate text-sm">CRM</span>
+              </button>
+              <button
+                onClick={() => navigate(`/workspace/${workspaceId}/business?tool=invoicing`)}
+                className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
+              >
+                <DocumentTextIcon className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate text-sm">Invoicing</span>
+              </button>
+              <button
+                onClick={() => navigate(`/workspace/${workspaceId}/business?tool=expenses`)}
+                className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
+              >
+                <CurrencyDollarIcon className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate text-sm">Expense Tracker</span>
+              </button>
+              <button
+                onClick={() => navigate(`/workspace/${workspaceId}/business?tool=timeoff`)}
+                className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
+              >
+                <CalendarIcon className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate text-sm">Time Off</span>
+              </button>
+            </div>
           </div>
-          <div className="space-y-1">
-            <button
-              onClick={() => navigate(`/workspace/${workspaceId}/business?tool=crm`)}
-              className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
-            >
-              <UsersIcon className="w-4 h-4 flex-shrink-0" />
-              <span className="truncate text-sm">CRM</span>
-            </button>
-            <button
-              onClick={() => navigate(`/workspace/${workspaceId}/business?tool=invoicing`)}
-              className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
-            >
-              <DocumentTextIcon className="w-4 h-4 flex-shrink-0" />
-              <span className="truncate text-sm">Invoicing</span>
-            </button>
-            <button
-              onClick={() => navigate(`/workspace/${workspaceId}/business?tool=expenses`)}
-              className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
-            >
-              <CurrencyDollarIcon className="w-4 h-4 flex-shrink-0" />
-              <span className="truncate text-sm">Expense Tracker</span>
-            </button>
-            <button
-              onClick={() => navigate(`/workspace/${workspaceId}/business?tool=timeoff`)}
-              className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
-            >
-              <CalendarIcon className="w-4 h-4 flex-shrink-0" />
-              <span className="truncate text-sm">Time Off</span>
-            </button>
-          </div>
-        </div>
+        )}
 
-        {/* AI Agents section */}
-        <div className="p-4 border-t border-gray-700">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-semibold text-gray-300">AI Agents</h3>
+        {/* Marketing & Promotion section - Only for tournament workspaces */}
+        {workspace.workspaceType === 'tournament' && (
+          <div className="p-4 border-t border-gray-700">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-gray-300">Marketing</h3>
+            </div>
+            <div className="space-y-1">
+              <button
+                onClick={() => navigate(`/workspace/${workspaceId}/marketing?tool=emails`)}
+                className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
+              >
+                <MegaphoneIcon className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate text-sm">Email Campaigns</span>
+              </button>
+              <button
+                onClick={() => navigate(`/workspace/${workspaceId}/marketing?tool=social`)}
+                className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
+              >
+                <UsersIcon className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate text-sm">Social Media</span>
+              </button>
+              <button
+                onClick={() => navigate(`/workspace/${workspaceId}/marketing?tool=graphics`)}
+                className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
+              >
+                <PencilSquareIcon className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate text-sm">Graphics & Posters</span>
+              </button>
+              <button
+                onClick={() => navigate(`/workspace/${workspaceId}/marketing?tool=sponsors`)}
+                className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
+              >
+                <BriefcaseIcon className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate text-sm">Sponsorships</span>
+              </button>
+            </div>
           </div>
-          <div className="space-y-1">
-            <button
-              onClick={() => navigate(`/workspace/${workspaceId}/agents`)}
-              className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
-            >
-              <CpuChipIcon className="w-4 h-4 flex-shrink-0" />
-              <span className="truncate text-sm">Agent Dashboard</span>
-            </button>
-            <button
-              onClick={() => navigate(`/workspace/${workspaceId}/tasks`)}
-              className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
-            >
-              <ClipboardDocumentListIcon className="w-4 h-4 flex-shrink-0" />
-              <span className="truncate text-sm">Task Board</span>
-            </button>
+        )}
+
+        {/* AI Agents section - Only for standard workspaces */}
+        {workspace.workspaceType !== 'tournament' && (
+          <div className="p-4 border-t border-gray-700">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-gray-300">AI Agents</h3>
+            </div>
+            <div className="space-y-1">
+              <button
+                onClick={() => navigate(`/workspace/${workspaceId}/agents`)}
+                className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
+              >
+                <CpuChipIcon className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate text-sm">Agent Dashboard</span>
+              </button>
+              <button
+                onClick={() => navigate(`/workspace/${workspaceId}/tasks`)}
+                className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
+              >
+                <ClipboardDocumentListIcon className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate text-sm">Task Board</span>
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Archived Channels Modal */}
