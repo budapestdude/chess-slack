@@ -33,6 +33,10 @@ export const authenticateToken = async (
     req.userId = decoded.userId;
     next();
   } catch (error) {
+    logger.error('Authentication failed', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
     return res.status(403).json({ error: 'Invalid or expired token' });
   }
 };
