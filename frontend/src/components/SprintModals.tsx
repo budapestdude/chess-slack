@@ -70,7 +70,8 @@ export const CreateSprintModal: React.FC<CreateSprintModalProps> = ({
       setTargetAudience('');
       onClose();
     } catch (err) {
-      setError('Failed to create sprint. Please try again.');
+      console.error('CreateSprintModal error:', err);
+      setError(`Failed to create sprint: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setIsSubmitting(false);
     }

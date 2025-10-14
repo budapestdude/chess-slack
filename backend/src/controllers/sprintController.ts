@@ -68,6 +68,11 @@ export const createSprint = asyncHandler(async (req: AuthRequest, res: Response)
   const userId = req.userId!;
   const { name, description, goal, startDate, endDate, budget, targetAudience, kpis, memberIds } = req.body;
 
+  console.log('=== CREATE SPRINT BACKEND ===');
+  console.log('workspaceId:', workspaceId);
+  console.log('userId:', userId);
+  console.log('body:', req.body);
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
