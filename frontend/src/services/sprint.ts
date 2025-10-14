@@ -30,7 +30,7 @@ export interface SprintTask {
   title: string;
   description?: string;
   task_type: 'content' | 'design' | 'social' | 'email' | 'sponsor' | 'analytics' | 'other';
-  status: 'todo' | 'in_progress' | 'review' | 'completed';
+  status: 'assets' | 'onboarded' | 'negotiating' | 'no_response';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   assigned_to?: string;
   assigned_to_username?: string;
@@ -132,7 +132,7 @@ export interface CreateTaskData {
   title: string;
   description?: string;
   taskType: 'content' | 'design' | 'social' | 'email' | 'sponsor' | 'analytics' | 'other';
-  status?: 'todo' | 'in_progress' | 'review' | 'completed';
+  status?: 'assets' | 'onboarded' | 'negotiating' | 'no_response';
   priority?: 'low' | 'medium' | 'high' | 'urgent';
   assignedTo?: string;
   dueDate?: string;

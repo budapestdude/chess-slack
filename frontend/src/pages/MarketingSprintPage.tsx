@@ -34,15 +34,15 @@ import { CreateSprintModal, TaskModal, PhaseModal } from '../components/SprintMo
 interface Column {
   id: string;
   title: string;
-  status: 'todo' | 'in_progress' | 'review' | 'completed';
+  status: 'assets' | 'onboarded' | 'negotiating' | 'no_response';
   color: string;
 }
 
 const columns: Column[] = [
-  { id: 'todo', title: 'To Do', status: 'todo', color: 'bg-gray-100' },
-  { id: 'in_progress', title: 'In Progress', status: 'in_progress', color: 'bg-blue-50' },
-  { id: 'review', title: 'Review', status: 'review', color: 'bg-yellow-50' },
-  { id: 'completed', title: 'Completed', status: 'completed', color: 'bg-green-50' },
+  { id: 'assets', title: 'Assets', status: 'assets', color: 'bg-purple-50' },
+  { id: 'onboarded', title: 'Successful Onboarded Users', status: 'onboarded', color: 'bg-green-50' },
+  { id: 'negotiating', title: 'Negotiating', status: 'negotiating', color: 'bg-yellow-50' },
+  { id: 'no_response', title: 'No Response', status: 'no_response', color: 'bg-gray-100' },
 ];
 
 const MarketingSprintPage: React.FC = () => {
@@ -77,7 +77,7 @@ const MarketingSprintPage: React.FC = () => {
     try {
       setLoading(true);
       console.log('loadSprints: fetching sprints for workspace:', workspaceId);
-      const data = await getSprints(workspaceId!, 'active');
+      const data = await getSprints(workspaceId!);
       console.log('loadSprints: received data:', data);
       setSprints(data);
       if (data.length > 0 && !selectedSprint) {
@@ -243,7 +243,7 @@ const MarketingSprintPage: React.FC = () => {
 
   const calculateProgress = () => {
     if (tasks.length === 0) return 0;
-    const completed = tasks.filter((t) => t.status === 'completed').length;
+    const completed = tasks.filter((t) => t.status === 'onboarded').length;
     return Math.round((completed / tasks.length) * 100);
   };
 
@@ -333,6 +333,53 @@ const MarketingSprintPage: React.FC = () => {
               <Plus className="w-5 h-5" />
               New Task
             </button>
+          </div>
+        </div>
+
+        {/* Goals and Task Owners */}
+        <div className="grid grid-cols-2 gap-4 mb-4 mt-4">
+          {/* Goals Section */}
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <Target className="w-5 h-5 text-blue-600" />
+              <h3 className="font-semibold text-gray-900">Sprint Goal</h3>
+            </div>
+            <p className="text-gray-700 text-sm">
+              {selectedSprint.goal || 'No goal set for this sprint'}
+            </p>
+            {selectedSprint.description && (
+              <p className="text-gray-600 text-xs mt-2">
+                {selectedSprint.description}
+              </p>
+            )}
+          </div>
+
+          {/* Task Owners Section */}
+          <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <Users className="w-5 h-5 text-purple-600" />
+              <h3 className="font-semibold text-gray-900">Task Owners</h3>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {selectedSprint.members && selectedSprint.members.length > 0 ? (
+                selectedSprint.members.map((member) => (
+                  <div
+                    key={member.id}
+                    className="flex items-center gap-2 px-3 py-1 bg-white rounded-full border border-purple-300"
+                  >
+                    <div className="w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center text-white text-xs font-semibold">
+                      {member.name.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="text-sm text-gray-700">{member.name}</span>
+                    <span className="text-xs text-purple-600 font-medium">
+                      {member.role}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-gray-600 text-sm">No team members assigned</p>
+              )}
+            </div>
           </div>
         </div>
 

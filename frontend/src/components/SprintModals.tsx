@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { X, Calendar, Target, DollarSign, Users as UsersIcon, Layers } from 'lucide-react';
-import { Sprint, CreateSprintData, SprintTask, CreateTaskData, SprintPhase, CreatePhaseData } from '../services/sprint';
+import { X, Calendar, Target, DollarSign, Users as UsersIcon, Layers, Paperclip, FileText, Image as ImageIcon, File, Mail } from 'lucide-react';
+import { Sprint, CreateSprintData, SprintTask, CreateTaskData, SprintPhase, CreatePhaseData, Attachment } from '../services/sprint';
 
 // ============ CREATE SPRINT MODAL ============
 
@@ -265,6 +265,10 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const [dueDate, setDueDate] = useState(task?.due_date?.split('T')[0] || '');
   const [estimatedHours, setEstimatedHours] = useState(task?.estimated_hours?.toString() || '');
   const [phaseId, setPhaseId] = useState(task?.phase_id || '');
+  const [attachments, setAttachments] = useState<Attachment[]>(task?.attachments || []);
+  const [newAttachmentName, setNewAttachmentName] = useState('');
+  const [newAttachmentUrl, setNewAttachmentUrl] = useState('');
+  const [newAttachmentType, setNewAttachmentType] = useState<'document' | 'csv' | 'image' | 'email'>('document');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -277,6 +281,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       setDueDate(task.due_date?.split('T')[0] || '');
       setEstimatedHours(task.estimated_hours?.toString() || '');
       setPhaseId(task.phase_id || '');
+      setAttachments(task.attachments || []);
     } else {
       setTitle('');
       setDescription('');
@@ -285,6 +290,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       setDueDate('');
       setEstimatedHours('');
       setPhaseId('');
+      setAttachments([]);
     }
   }, [task, isOpen]);
 
@@ -307,12 +313,49 @@ export const TaskModal: React.FC<TaskModalProps> = ({
         dueDate: dueDate || undefined,
         estimatedHours: estimatedHours ? parseFloat(estimatedHours) : undefined,
         phaseId: phaseId || undefined,
+        attachments: attachments.length > 0 ? attachments : undefined,
       });
       onClose();
     } catch (err) {
       setError('Failed to save task. Please try again.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleAddAttachment = () => {
+    if (!newAttachmentName || !newAttachmentUrl) {
+      setError('Please provide both name and URL/link for the attachment');
+      return;
+    }
+    const newAttachment: Attachment = {
+      id: Date.now().toString(),
+      name: newAttachmentName,
+      url: newAttachmentUrl,
+      type: newAttachmentType,
+    };
+    setAttachments([...attachments, newAttachment]);
+    setNewAttachmentName('');
+    setNewAttachmentUrl('');
+    setError('');
+  };
+
+  const handleRemoveAttachment = (id: string) => {
+    setAttachments(attachments.filter((att) => att.id !== id));
+  };
+
+  const getAttachmentIcon = (type: string) => {
+    switch (type) {
+      case 'document':
+        return <FileText className="w-4 h-4" />;
+      case 'csv':
+        return <File className="w-4 h-4" />;
+      case 'image':
+        return <ImageIcon className="w-4 h-4" />;
+      case 'email':
+        return <Mail className="w-4 h-4" />;
+      default:
+        return <Paperclip className="w-4 h-4" />;
     }
   };
 
@@ -448,6 +491,82 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               </select>
             </div>
           )}
+
+          {/* Assets/Attachments Section */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+              <Paperclip className="w-4 h-4" />
+              Assets & Attachments
+            </label>
+
+            {/* Existing Attachments */}
+            {attachments.length > 0 && (
+              <div className="mb-3 space-y-2">
+                {attachments.map((attachment) => (
+                  <div
+                    key={attachment.id}
+                    className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="text-blue-600">
+                        {getAttachmentIcon(attachment.type)}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{attachment.name}</p>
+                        <p className="text-xs text-gray-600 truncate max-w-xs">{attachment.url}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveAttachment(attachment.id)}
+                      className="text-red-600 hover:text-red-800 p-1"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Add New Attachment */}
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  value={newAttachmentName}
+                  onChange={(e) => setNewAttachmentName(e.target.value)}
+                  placeholder="Asset name"
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <select
+                  value={newAttachmentType}
+                  onChange={(e) => setNewAttachmentType(e.target.value as 'document' | 'csv' | 'image' | 'email')}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="document">📄 Document</option>
+                  <option value="csv">📊 CSV File</option>
+                  <option value="image">🖼️ Image</option>
+                  <option value="email">📧 Draft Email</option>
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newAttachmentUrl}
+                  onChange={(e) => setNewAttachmentUrl(e.target.value)}
+                  placeholder="URL or file path"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddAttachment}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+          </div>
 
           {/* Error Message */}
           {error && (

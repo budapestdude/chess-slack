@@ -14,7 +14,7 @@ export const getSprints = asyncHandler(async (req: AuthRequest, res: Response) =
       s.*,
       u.username as created_by_username,
       (SELECT COUNT(*) FROM sprint_tasks WHERE sprint_id = s.id) as task_count,
-      (SELECT COUNT(*) FROM sprint_tasks WHERE sprint_id = s.id AND status = 'completed') as completed_task_count,
+      (SELECT COUNT(*) FROM sprint_tasks WHERE sprint_id = s.id AND status = 'onboarded') as completed_task_count,
       (SELECT json_agg(json_build_object('id', sm.user_id, 'name', su.username, 'role', sm.role))
        FROM sprint_members sm
        JOIN users su ON sm.user_id = su.id
@@ -401,7 +401,7 @@ export const getPhases = asyncHandler(async (req: AuthRequest, res: Response) =>
     SELECT
       p.*,
       (SELECT COUNT(*) FROM sprint_tasks WHERE phase_id = p.id) as task_count,
-      (SELECT COUNT(*) FROM sprint_tasks WHERE phase_id = p.id AND status = 'completed') as completed_task_count
+      (SELECT COUNT(*) FROM sprint_tasks WHERE phase_id = p.id AND status = 'onboarded') as completed_task_count
     FROM sprint_phases p
     WHERE p.sprint_id = $1
     ORDER BY p.phase_order
