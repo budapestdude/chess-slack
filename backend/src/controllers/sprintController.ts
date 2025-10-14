@@ -12,10 +12,10 @@ export const getSprints = asyncHandler(async (req: AuthRequest, res: Response) =
   let query = `
     SELECT
       s.*,
-      u.name as created_by_username,
+      u.username as created_by_username,
       (SELECT COUNT(*) FROM sprint_tasks WHERE sprint_id = s.id) as task_count,
       (SELECT COUNT(*) FROM sprint_tasks WHERE sprint_id = s.id AND status = 'completed') as completed_task_count,
-      (SELECT json_agg(json_build_object('id', sm.user_id, 'name', su.name, 'role', sm.role))
+      (SELECT json_agg(json_build_object('id', sm.user_id, 'name', su.username, 'role', sm.role))
        FROM sprint_members sm
        JOIN users su ON sm.user_id = su.id
        WHERE sm.sprint_id = s.id) as members
@@ -44,8 +44,8 @@ export const getSprint = asyncHandler(async (req: AuthRequest, res: Response) =>
     `
     SELECT
       s.*,
-      u.name as created_by_username,
-      (SELECT json_agg(json_build_object('id', sm.user_id, 'name', su.name, 'role', sm.role))
+      u.username as created_by_username,
+      (SELECT json_agg(json_build_object('id', sm.user_id, 'name', su.username, 'role', sm.role))
        FROM sprint_members sm
        JOIN users su ON sm.user_id = su.id
        WHERE sm.sprint_id = s.id) as members
@@ -170,8 +170,8 @@ export const getTasks = asyncHandler(async (req: AuthRequest, res: Response) => 
     `
     SELECT
       t.*,
-      u.name as created_by_username,
-      au.name as assigned_to_username,
+      u.username as created_by_username,
+      au.username as assigned_to_username,
       ec.name as email_campaign_name,
       sp.content as social_post_content,
       pt.name as poster_template_name,
@@ -207,8 +207,8 @@ export const getTask = asyncHandler(async (req: AuthRequest, res: Response) => {
     `
     SELECT
       t.*,
-      u.name as created_by_username,
-      au.name as assigned_to_username
+      u.username as created_by_username,
+      au.username as assigned_to_username
     FROM sprint_tasks t
     JOIN users u ON t.created_by = u.id
     LEFT JOIN users au ON t.assigned_to = au.id
