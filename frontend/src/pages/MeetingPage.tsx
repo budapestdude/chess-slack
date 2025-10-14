@@ -165,7 +165,7 @@ const MeetingNotesTool: React.FC = () => {
   const [selectedTemplate, setSelectedTemplate] = useState<string>('blank');
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const autoSaveTimeoutRef = useRef<number | null>(null);
 
   const templates = {
     blank: {

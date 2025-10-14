@@ -259,8 +259,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 }) => {
   const [title, setTitle] = useState(task?.title || '');
   const [description, setDescription] = useState(task?.description || '');
-  const [taskType, setTaskType] = useState(task?.task_type || 'content');
-  const [priority, setPriority] = useState(task?.priority || 'medium');
+  const [taskType, setTaskType] = useState<'content' | 'design' | 'social' | 'email' | 'sponsor' | 'analytics' | 'other'>(task?.task_type || 'content');
+  const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>(task?.priority || 'medium');
   const [dueDate, setDueDate] = useState(task?.due_date?.split('T')[0] || '');
   const [estimatedHours, setEstimatedHours] = useState(task?.estimated_hours?.toString() || '');
   const [phaseId, setPhaseId] = useState(task?.phase_id || '');
@@ -374,7 +374,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               <label className="block text-sm font-medium text-gray-700 mb-2">Task Type</label>
               <select
                 value={taskType}
-                onChange={(e) => setTaskType(e.target.value as any)}
+                onChange={(e) => setTaskType(e.target.value as typeof taskType)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="content">📝 Content</option>
@@ -390,7 +390,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
               <select
                 value={priority}
-                onChange={(e) => setPriority(e.target.value as any)}
+                onChange={(e) => setPriority(e.target.value as typeof priority)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="low">Low</option>
