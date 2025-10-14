@@ -107,7 +107,11 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
   }, [document.id]);
 
   const handleAutoSave = async () => {
-    if (!title && !content) return;
+    console.log('handleAutoSave called - title:', title, 'content length:', content?.length || 0);
+    if (!title && !content) {
+      console.log('Skipping auto-save: both title and content are empty');
+      return;
+    }
 
     setIsSaving(true);
     try {
@@ -122,7 +126,9 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
         updateData.coverImageUrl = coverImage;
       }
 
+      console.log('Saving document:', document.id, 'updateData:', updateData);
       const updated = await updateDocument(workspaceId, document.id, updateData);
+      console.log('Document saved successfully:', updated);
       setLastSaved(new Date());
       onUpdate(updated);
     } catch (error) {
@@ -166,7 +172,9 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
   const handleContentInput = () => {
     if (contentEditableRef.current) {
       const range = saveCursorPosition();
-      setContent(contentEditableRef.current.innerHTML);
+      const newContent = contentEditableRef.current.innerHTML;
+      console.log('handleContentInput - new content length:', newContent.length);
+      setContent(newContent);
       // Restore cursor position after state update
       requestAnimationFrame(() => {
         restoreCursorPosition(range);
