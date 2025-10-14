@@ -18,10 +18,9 @@ import {
   Sprint,
   SprintTask,
   SprintPhase,
-  getSprints,
+  getSprint,
   getTasks,
   createTask,
-  createSprint,
   updateTask,
   deleteTask,
   updateSprint,
@@ -29,7 +28,7 @@ import {
   createPhase,
   updatePhase,
 } from '../services/sprint';
-import { CreateSprintModal, TaskModal, PhaseModal } from '../components/SprintModals';
+import { TaskModal, PhaseModal } from '../components/SprintModals';
 
 interface Column {
   id: string;
@@ -46,64 +45,47 @@ const columns: Column[] = [
 ];
 
 const MarketingSprintPage: React.FC = () => {
-  const { workspaceId } = useParams<{ workspaceId: string }>();
-  const [sprints, setSprints] = useState<Sprint[]>([]);
-  const [selectedSprint, setSelectedSprint] = useState<Sprint | null>(null);
+  const { workspaceId, sprintId } = useParams<{ workspaceId: string; sprintId: string }>();
+  const [sprint, setSprint] = useState<Sprint | null>(null);
   const [tasks, setTasks] = useState<SprintTask[]>([]);
   const [phases, setPhases] = useState<SprintPhase[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTask, setSelectedTask] = useState<SprintTask | null>(null);
   const [selectedPhase, setSelectedPhase] = useState<SprintPhase | null>(null);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
-  const [isSprintModalOpen, setIsSprintModalOpen] = useState(false);
   const [isPhaseModalOpen, setIsPhaseModalOpen] = useState(false);
   const [filterType, setFilterType] = useState<string>('all');
   const [filterPriority, setFilterPriority] = useState<string>('all');
 
   useEffect(() => {
-    if (workspaceId) {
-      loadSprints();
+    if (workspaceId && sprintId) {
+      loadSprint();
     }
-  }, [workspaceId]);
+  }, [workspaceId, sprintId]);
 
   useEffect(() => {
-    if (selectedSprint) {
+    if (sprint) {
       loadTasks();
       loadPhases();
     }
-  }, [selectedSprint]);
+  }, [sprint]);
 
-  const loadSprints = async () => {
+  const loadSprint = async () => {
     try {
       setLoading(true);
-      console.log('loadSprints: fetching sprints for workspace:', workspaceId);
-      const data = await getSprints(workspaceId!);
-      console.log('loadSprints: received data:', data);
-      setSprints(data);
-      if (data.length > 0 && !selectedSprint) {
-        setSelectedSprint(data[0]);
-      }
+      const data = await getSprint(workspaceId!, sprintId!);
+      setSprint(data);
     } catch (error) {
-      console.error('Error loading sprints:', error);
-      console.error('Error type:', typeof error);
-      console.error('Error constructor:', error?.constructor?.name);
-      if (error && typeof error === 'object') {
-        console.error('Error keys:', Object.keys(error));
-        console.error('Error stringified:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
-      }
-      if (error instanceof Error) {
-        console.error('Error message:', error.message);
-        console.error('Error stack:', error.stack);
-      }
+      console.error('Error loading sprint:', error);
     } finally {
       setLoading(false);
     }
   };
 
   const loadTasks = async () => {
-    if (!selectedSprint) return;
+    if (!sprint) return;
     try {
-      const data = await getTasks(workspaceId!, selectedSprint.id);
+      const data = await getTasks(workspaceId!, sprint.id);
       setTasks(data);
     } catch (error) {
       console.error('Error loading tasks:', error);
@@ -111,9 +93,9 @@ const MarketingSprintPage: React.FC = () => {
   };
 
   const loadPhases = async () => {
-    if (!selectedSprint) return;
+    if (!sprint) return;
     try {
-      const data = await getPhases(workspaceId!, selectedSprint.id);
+      const data = await getPhases(workspaceId!, sprint.id);
       setPhases(data);
     } catch (error) {
       console.error('Error loading phases:', error);
@@ -121,9 +103,9 @@ const MarketingSprintPage: React.FC = () => {
   };
 
   const handleCreatePhase = async (data: any) => {
-    if (!selectedSprint) return;
+    if (!sprint) return;
     try {
-      await createPhase(workspaceId!, selectedSprint.id, data);
+      await createPhase(workspaceId!, sprint.id, data);
       await loadPhases();
     } catch (error) {
       console.error('Error creating phase:', error);
@@ -132,9 +114,9 @@ const MarketingSprintPage: React.FC = () => {
   };
 
   const handleUpdatePhase = async (data: any) => {
-    if (!selectedSprint || !selectedPhase) return;
+    if (!sprint || !selectedPhase) return;
     try {
-      await updatePhase(workspaceId!, selectedSprint.id, selectedPhase.id, data);
+      await updatePhase(workspaceId!, sprint.id, selectedPhase.id, data);
       await loadPhases();
       setSelectedPhase(null);
     } catch (error) {
@@ -145,7 +127,7 @@ const MarketingSprintPage: React.FC = () => {
 
   const handleTaskStatusChange = async (taskId: string, newStatus: SprintTask['status']) => {
     try {
-      await updateTask(workspaceId!, selectedSprint!.id, taskId, { status: newStatus });
+      await updateTask(workspaceId!, sprint!.id, taskId, { status: newStatus });
       await loadTasks();
     } catch (error) {
       console.error('Error updating task:', error);
@@ -153,32 +135,19 @@ const MarketingSprintPage: React.FC = () => {
   };
 
   const handleSprintStatusChange = async (newStatus: Sprint['status']) => {
-    if (!selectedSprint) return;
+    if (!sprint) return;
     try {
-      await updateSprint(workspaceId!, selectedSprint.id, { status: newStatus });
-      await loadSprints();
+      await updateSprint(workspaceId!, sprint.id, { status: newStatus });
+      await loadSprint();
     } catch (error) {
       console.error('Error updating sprint:', error);
     }
   };
 
-  const handleCreateSprint = async (data: any) => {
-    console.log('handleCreateSprint called with:', data, 'workspaceId:', workspaceId);
-    try {
-      const newSprint = await createSprint(workspaceId!, data);
-      console.log('Sprint created successfully:', newSprint);
-      await loadSprints();
-      setSelectedSprint(newSprint);
-    } catch (error) {
-      console.error('Error creating sprint:', error);
-      throw error;
-    }
-  };
-
   const handleCreateTask = async (data: any) => {
-    if (!selectedSprint) return;
+    if (!sprint) return;
     try {
-      await createTask(workspaceId!, selectedSprint.id, data);
+      await createTask(workspaceId!, sprint.id, data);
       await loadTasks();
     } catch (error) {
       console.error('Error creating task:', error);
@@ -187,9 +156,9 @@ const MarketingSprintPage: React.FC = () => {
   };
 
   const handleUpdateTask = async (data: any) => {
-    if (!selectedSprint || !selectedTask) return;
+    if (!sprint || !selectedTask) return;
     try {
-      await updateTask(workspaceId!, selectedSprint.id, selectedTask.id, data);
+      await updateTask(workspaceId!, sprint.id, selectedTask.id, data);
       await loadTasks();
       setSelectedTask(null);
     } catch (error) {
@@ -248,8 +217,8 @@ const MarketingSprintPage: React.FC = () => {
   };
 
   const getDaysRemaining = () => {
-    if (!selectedSprint) return 0;
-    const end = new Date(selectedSprint.end_date);
+    if (!sprint) return 0;
+    const end = new Date(sprint.end_date);
     const now = new Date();
     const diff = end.getTime() - now.getTime();
     return Math.ceil(diff / (1000 * 60 * 60 * 24));
@@ -263,23 +232,12 @@ const MarketingSprintPage: React.FC = () => {
     );
   }
 
-  if (!selectedSprint) {
+  if (!sprint) {
     return (
       <div className="flex flex-col items-center justify-center h-screen p-6">
-        <Target className="w-16 h-16 text-gray-400 mb-4" />
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">No Active Sprints</h2>
-        <p className="text-gray-600 mb-6">Create your first marketing sprint to get started.</p>
-        <button
-          onClick={() => setIsSprintModalOpen(true)}
-          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-        >
-          Create Sprint
-        </button>
-        <CreateSprintModal
-          isOpen={isSprintModalOpen}
-          onClose={() => setIsSprintModalOpen(false)}
-          onSave={handleCreateSprint}
-        />
+        <AlertCircle className="w-16 h-16 text-gray-400 mb-4" />
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Sprint Not Found</h2>
+        <p className="text-gray-600 mb-6">This sprint does not exist or you don't have access to it.</p>
       </div>
     );
   }
@@ -289,35 +247,21 @@ const MarketingSprintPage: React.FC = () => {
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold text-gray-900">{selectedSprint.name}</h1>
-            <select
-              value={selectedSprint.id}
-              onChange={(e) => {
-                const sprint = sprints.find((s) => s.id === e.target.value);
-                if (sprint) setSelectedSprint(sprint);
-              }}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {sprints.map((sprint) => (
-                <option key={sprint.id} value={sprint.id}>
-                  {sprint.name}
-                </option>
-              ))}
-            </select>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">{sprint.name}</h1>
           </div>
 
           <div className="flex items-center gap-3">
             <button
               onClick={() => handleSprintStatusChange('active')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-medium ${
-                selectedSprint.status === 'active'
+                sprint.status === 'active'
                   ? 'bg-green-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
               <Play className="w-4 h-4" />
-              {selectedSprint.status === 'active' ? 'Active' : 'Start Sprint'}
+              {sprint.status === 'active' ? 'Active' : 'Start Sprint'}
             </button>
             <button
               onClick={() => setIsPhaseModalOpen(true)}
@@ -345,11 +289,11 @@ const MarketingSprintPage: React.FC = () => {
               <h3 className="font-semibold text-gray-900">Sprint Goal</h3>
             </div>
             <p className="text-gray-700 text-sm">
-              {selectedSprint.goal || 'No goal set for this sprint'}
+              {sprint.goal || 'No goal set for this sprint'}
             </p>
-            {selectedSprint.description && (
+            {sprint.description && (
               <p className="text-gray-600 text-xs mt-2">
-                {selectedSprint.description}
+                {sprint.description}
               </p>
             )}
           </div>
@@ -361,8 +305,8 @@ const MarketingSprintPage: React.FC = () => {
               <h3 className="font-semibold text-gray-900">Task Owners</h3>
             </div>
             <div className="flex flex-wrap gap-2">
-              {selectedSprint.members && selectedSprint.members.length > 0 ? (
-                selectedSprint.members.map((member) => (
+              {sprint.members && sprint.members.length > 0 ? (
+                sprint.members.map((member) => (
                   <div
                     key={member.id}
                     className="flex items-center gap-2 px-3 py-1 bg-white rounded-full border border-purple-300"
@@ -410,7 +354,7 @@ const MarketingSprintPage: React.FC = () => {
             <Users className="w-5 h-5 text-purple-600" />
             <div>
               <p className="text-xs text-gray-600">Team Members</p>
-              <p className="text-lg font-bold text-gray-900">{selectedSprint.members?.length || 0}</p>
+              <p className="text-lg font-bold text-gray-900">{sprint.members?.length || 0}</p>
             </div>
           </div>
           <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
@@ -418,7 +362,7 @@ const MarketingSprintPage: React.FC = () => {
             <div>
               <p className="text-xs text-gray-600">Budget</p>
               <p className="text-lg font-bold text-gray-900">
-                ${selectedSprint.budget?.toLocaleString() || '0'}
+                ${sprint.budget?.toLocaleString() || '0'}
               </p>
             </div>
           </div>

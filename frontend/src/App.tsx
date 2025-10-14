@@ -19,6 +19,7 @@ const CollaborationPage = lazy(() => import('./pages/CollaborationPage'));
 const MeetingPage = lazy(() => import('./pages/MeetingPage'));
 const BusinessPage = lazy(() => import('./pages/BusinessPage'));
 const MarketingPage = lazy(() => import('./pages/MarketingPage'));
+const SprintOverviewPage = lazy(() => import('./pages/SprintOverviewPage'));
 const MarketingSprintPage = lazy(() => import('./pages/MarketingSprintPage'));
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -174,6 +175,14 @@ export default function App() {
         />
         <Route
           path="/workspace/:workspaceId/marketing/sprints"
+          element={
+            <PrivateRoute>
+              <SprintOverviewPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/workspace/:workspaceId/marketing/sprint/:sprintId"
           element={
             <PrivateRoute>
               <MarketingSprintPage />
