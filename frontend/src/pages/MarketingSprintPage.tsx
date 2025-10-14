@@ -19,10 +19,12 @@ import {
   getSprints,
   getTasks,
   createTask,
+  createSprint,
   updateTask,
   deleteTask,
   updateSprint,
 } from '../services/sprint';
+import { CreateSprintModal, TaskModal } from '../components/SprintModals';
 
 interface Column {
   id: string;
@@ -46,6 +48,7 @@ const MarketingSprintPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedTask, setSelectedTask] = useState<SprintTask | null>(null);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [isSprintModalOpen, setIsSprintModalOpen] = useState(false);
   const [filterType, setFilterType] = useState<string>('all');
   const [filterPriority, setFilterPriority] = useState<string>('all');
 
@@ -102,6 +105,40 @@ const MarketingSprintPage: React.FC = () => {
       await loadSprints();
     } catch (error) {
       console.error('Error updating sprint:', error);
+    }
+  };
+
+  const handleCreateSprint = async (data: any) => {
+    try {
+      const newSprint = await createSprint(workspaceId!, data);
+      await loadSprints();
+      setSelectedSprint(newSprint);
+    } catch (error) {
+      console.error('Error creating sprint:', error);
+      throw error;
+    }
+  };
+
+  const handleCreateTask = async (data: any) => {
+    if (!selectedSprint) return;
+    try {
+      await createTask(workspaceId!, selectedSprint.id, data);
+      await loadTasks();
+    } catch (error) {
+      console.error('Error creating task:', error);
+      throw error;
+    }
+  };
+
+  const handleUpdateTask = async (data: any) => {
+    if (!selectedSprint || !selectedTask) return;
+    try {
+      await updateTask(workspaceId!, selectedSprint.id, selectedTask.id, data);
+      await loadTasks();
+      setSelectedTask(null);
+    } catch (error) {
+      console.error('Error updating task:', error);
+      throw error;
     }
   };
 
@@ -176,9 +213,17 @@ const MarketingSprintPage: React.FC = () => {
         <Target className="w-16 h-16 text-gray-400 mb-4" />
         <h2 className="text-2xl font-bold text-gray-900 mb-2">No Active Sprints</h2>
         <p className="text-gray-600 mb-6">Create your first marketing sprint to get started.</p>
-        <button className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+        <button
+          onClick={() => setIsSprintModalOpen(true)}
+          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+        >
           Create Sprint
         </button>
+        <CreateSprintModal
+          isOpen={isSprintModalOpen}
+          onClose={() => setIsSprintModalOpen(false)}
+          onSave={handleCreateSprint}
+        />
       </div>
     );
   }
@@ -375,35 +420,16 @@ const MarketingSprintPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Task Modal - Placeholder for now */}
-      {isTaskModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
-          onClick={() => {
-            setIsTaskModalOpen(false);
-            setSelectedTask(null);
-          }}
-        >
-          <div
-            className="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="text-xl font-bold mb-4">
-              {selectedTask ? 'Edit Task' : 'Create New Task'}
-            </h2>
-            <p className="text-gray-600">Task creation form will go here...</p>
-            <button
-              onClick={() => {
-                setIsTaskModalOpen(false);
-                setSelectedTask(null);
-              }}
-              className="mt-4 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Modals */}
+      <TaskModal
+        isOpen={isTaskModalOpen}
+        onClose={() => {
+          setIsTaskModalOpen(false);
+          setSelectedTask(null);
+        }}
+        onSave={selectedTask ? handleUpdateTask : handleCreateTask}
+        task={selectedTask}
+      />
     </div>
   );
 };
