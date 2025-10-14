@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { X, Calendar, Target, DollarSign, Users as UsersIcon } from 'lucide-react';
-import { Sprint, CreateSprintData, SprintTask, CreateTaskData } from '../services/sprint';
+import { X, Calendar, Target, DollarSign, Users as UsersIcon, Layers } from 'lucide-react';
+import { Sprint, CreateSprintData, SprintTask, CreateTaskData, SprintPhase, CreatePhaseData } from '../services/sprint';
 
 // ============ CREATE SPRINT MODAL ============
 
@@ -439,6 +439,231 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                 </>
               ) : (
                 task ? 'Update Task' : 'Create Task'
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// ============ PHASE MODAL ============
+
+interface PhaseModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (data: CreatePhaseData) => Promise<void>;
+  maxPhaseOrder: number;
+}
+
+export const PhaseModal: React.FC<PhaseModalProps> = ({
+  isOpen,
+  onClose,
+  onSave,
+  maxPhaseOrder,
+}) => {
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [phaseOrder, setPhaseOrder] = useState(maxPhaseOrder + 1);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [color, setColor] = useState('blue');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setName('');
+      setDescription('');
+      setPhaseOrder(maxPhaseOrder + 1);
+      setStartDate('');
+      setEndDate('');
+      setColor('blue');
+      setError('');
+    }
+  }, [isOpen, maxPhaseOrder]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (!name) {
+      setError('Please enter a phase name');
+      return;
+    }
+
+    if (startDate && endDate && new Date(endDate) <= new Date(startDate)) {
+      setError('End date must be after start date');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await onSave({
+        name,
+        description: description || undefined,
+        phaseOrder,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        color,
+      });
+      onClose();
+    } catch (err) {
+      setError('Failed to create phase. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  const colorOptions = [
+    { value: 'blue', label: 'Blue', bg: 'bg-blue-500' },
+    { value: 'green', label: 'Green', bg: 'bg-green-500' },
+    { value: 'purple', label: 'Purple', bg: 'bg-purple-500' },
+    { value: 'orange', label: 'Orange', bg: 'bg-orange-500' },
+    { value: 'pink', label: 'Pink', bg: 'bg-pink-500' },
+    { value: 'indigo', label: 'Indigo', bg: 'bg-indigo-500' },
+    { value: 'red', label: 'Red', bg: 'bg-red-500' },
+  ];
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[calc(100vh-4rem)] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-xl">
+          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <Layers className="w-5 h-5" />
+            Create Sprint Phase
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Name */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Phase Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Planning Phase"
+              required
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              placeholder="Brief description of this phase..."
+            />
+          </div>
+
+          {/* Phase Order */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Phase Order</label>
+            <input
+              type="number"
+              value={phaseOrder}
+              onChange={(e) => setPhaseOrder(parseInt(e.target.value))}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              min="1"
+              required
+            />
+          </div>
+
+          {/* Dates */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* Color */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Phase Color</label>
+            <div className="grid grid-cols-7 gap-3">
+              {colorOptions.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setColor(option.value)}
+                  className={`h-10 rounded-lg ${option.bg} transition-all ${
+                    color === option.value
+                      ? 'ring-4 ring-gray-300 scale-110'
+                      : 'hover:scale-105 opacity-70 hover:opacity-100'
+                  }`}
+                  title={option.label}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="text-sm text-red-900">{error}</p>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex gap-3 pt-4 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="flex-1 px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="flex-1 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                'Create Phase'
               )}
             </button>
           </div>

@@ -12,10 +12,12 @@ import {
   AlertCircle,
   BarChart3,
   Filter,
+  Layers,
 } from 'lucide-react';
 import {
   Sprint,
   SprintTask,
+  SprintPhase,
   getSprints,
   getTasks,
   createTask,
@@ -23,8 +25,10 @@ import {
   updateTask,
   deleteTask,
   updateSprint,
+  getPhases,
+  createPhase,
 } from '../services/sprint';
-import { CreateSprintModal, TaskModal } from '../components/SprintModals';
+import { CreateSprintModal, TaskModal, PhaseModal } from '../components/SprintModals';
 
 interface Column {
   id: string;
@@ -45,10 +49,12 @@ const MarketingSprintPage: React.FC = () => {
   const [sprints, setSprints] = useState<Sprint[]>([]);
   const [selectedSprint, setSelectedSprint] = useState<Sprint | null>(null);
   const [tasks, setTasks] = useState<SprintTask[]>([]);
+  const [phases, setPhases] = useState<SprintPhase[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTask, setSelectedTask] = useState<SprintTask | null>(null);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isSprintModalOpen, setIsSprintModalOpen] = useState(false);
+  const [isPhaseModalOpen, setIsPhaseModalOpen] = useState(false);
   const [filterType, setFilterType] = useState<string>('all');
   const [filterPriority, setFilterPriority] = useState<string>('all');
 
@@ -61,6 +67,7 @@ const MarketingSprintPage: React.FC = () => {
   useEffect(() => {
     if (selectedSprint) {
       loadTasks();
+      loadPhases();
     }
   }, [selectedSprint]);
 
@@ -86,6 +93,27 @@ const MarketingSprintPage: React.FC = () => {
       setTasks(data);
     } catch (error) {
       console.error('Error loading tasks:', error);
+    }
+  };
+
+  const loadPhases = async () => {
+    if (!selectedSprint) return;
+    try {
+      const data = await getPhases(workspaceId!, selectedSprint.id);
+      setPhases(data);
+    } catch (error) {
+      console.error('Error loading phases:', error);
+    }
+  };
+
+  const handleCreatePhase = async (data: any) => {
+    if (!selectedSprint) return;
+    try {
+      await createPhase(workspaceId!, selectedSprint.id, data);
+      await loadPhases();
+    } catch (error) {
+      console.error('Error creating phase:', error);
+      throw error;
     }
   };
 
@@ -264,6 +292,13 @@ const MarketingSprintPage: React.FC = () => {
               {selectedSprint.status === 'active' ? 'Active' : 'Start Sprint'}
             </button>
             <button
+              onClick={() => setIsPhaseModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+            >
+              <Layers className="w-5 h-5" />
+              New Phase
+            </button>
+            <button
               onClick={() => setIsTaskModalOpen(true)}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
             >
@@ -342,6 +377,69 @@ const MarketingSprintPage: React.FC = () => {
             <option value="low">Low</option>
           </select>
         </div>
+
+        {/* Phases */}
+        {phases.length > 0 && (
+          <div className="mt-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <Layers className="w-4 h-4" />
+              Sprint Phases ({phases.length})
+            </h3>
+            <div className="flex gap-3 overflow-x-auto pb-2">
+              {phases.map((phase) => {
+                const phaseTaskCount = phase.task_count || 0;
+                const phaseCompletedCount = phase.completed_task_count || 0;
+                const phaseProgress = phaseTaskCount > 0 ? Math.round((phaseCompletedCount / phaseTaskCount) * 100) : 0;
+                const getPhaseColorClasses = (color: string) => {
+                  const colorMap: Record<string, string> = {
+                    blue: 'bg-blue-100 border-blue-300 text-blue-800',
+                    green: 'bg-green-100 border-green-300 text-green-800',
+                    purple: 'bg-purple-100 border-purple-300 text-purple-800',
+                    orange: 'bg-orange-100 border-orange-300 text-orange-800',
+                    pink: 'bg-pink-100 border-pink-300 text-pink-800',
+                    indigo: 'bg-indigo-100 border-indigo-300 text-indigo-800',
+                    red: 'bg-red-100 border-red-300 text-red-800',
+                  };
+                  return colorMap[color] || colorMap.blue;
+                };
+
+                return (
+                  <div
+                    key={phase.id}
+                    className={`flex-shrink-0 w-48 p-3 border-2 rounded-lg ${getPhaseColorClasses(phase.color)}`}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <span className="text-xs font-bold">Phase {phase.phase_order}</span>
+                      <span className={`px-2 py-0.5 text-xs rounded ${
+                        phase.status === 'completed' ? 'bg-green-200 text-green-800' :
+                        phase.status === 'active' ? 'bg-blue-200 text-blue-800' :
+                        'bg-gray-200 text-gray-800'
+                      }`}>
+                        {phase.status}
+                      </span>
+                    </div>
+                    <h4 className="font-semibold text-sm mb-1">{phase.name}</h4>
+                    {phase.description && (
+                      <p className="text-xs opacity-80 mb-2 line-clamp-2">{phase.description}</p>
+                    )}
+                    <div className="mt-2">
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span>{phaseCompletedCount} / {phaseTaskCount} tasks</span>
+                        <span className="font-semibold">{phaseProgress}%</span>
+                      </div>
+                      <div className="w-full bg-white/50 rounded-full h-1.5">
+                        <div
+                          className="bg-current h-1.5 rounded-full transition-all"
+                          style={{ width: `${phaseProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Kanban Board */}
@@ -429,6 +527,12 @@ const MarketingSprintPage: React.FC = () => {
         }}
         onSave={selectedTask ? handleUpdateTask : handleCreateTask}
         task={selectedTask}
+      />
+      <PhaseModal
+        isOpen={isPhaseModalOpen}
+        onClose={() => setIsPhaseModalOpen(false)}
+        onSave={handleCreatePhase}
+        maxPhaseOrder={phases.length > 0 ? Math.max(...phases.map(p => p.phase_order)) : 0}
       />
     </div>
   );

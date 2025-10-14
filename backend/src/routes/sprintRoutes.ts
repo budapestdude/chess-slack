@@ -22,4 +22,10 @@ router.delete('/:workspaceId/sprints/:sprintId/tasks/:taskId', authenticateToken
 router.get('/:workspaceId/sprints/:sprintId/metrics', authenticateToken, sprintController.getMetrics);
 router.post('/:workspaceId/sprints/:sprintId/metrics', authenticateToken, sprintController.updateMetrics);
 
+// Phase routes
+router.get('/:workspaceId/sprints/:sprintId/phases', authenticateToken, sprintController.getPhases);
+router.post('/:workspaceId/sprints/:sprintId/phases', authenticateToken, sprintController.createPhase);
+router.put('/:workspaceId/sprints/:sprintId/phases/:phaseId', authenticateToken, sprintController.updatePhase);
+router.delete('/:workspaceId/sprints/:sprintId/phases/:phaseId', authenticateToken, sprintController.deletePhase);
+
 export default router;

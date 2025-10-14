@@ -385,3 +385,81 @@ export const updateMetrics = asyncHandler(async (req: AuthRequest, res: Response
 
   res.json(result.rows[0]);
 });
+
+// ============ PHASES ============
+
+export const getPhases = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { workspaceId, sprintId } = req.params;
+
+  const result = await pool.query(
+    `
+    SELECT
+      p.*,
+      (SELECT COUNT(*) FROM sprint_tasks WHERE phase_id = p.id) as task_count,
+      (SELECT COUNT(*) FROM sprint_tasks WHERE phase_id = p.id AND status = 'completed') as completed_task_count
+    FROM sprint_phases p
+    WHERE p.sprint_id = $1
+    ORDER BY p.phase_order
+    `,
+    [sprintId]
+  );
+
+  res.json({ phases: result.rows });
+});
+
+export const createPhase = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { workspaceId, sprintId } = req.params;
+  const { name, description, phaseOrder, startDate, endDate, color } = req.body;
+
+  const result = await pool.query(
+    `
+    INSERT INTO sprint_phases (
+      sprint_id, name, description, phase_order, start_date, end_date, color
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
+    RETURNING *
+    `,
+    [sprintId, name, description, phaseOrder, startDate, endDate, color || 'blue']
+  );
+
+  res.status(201).json(result.rows[0]);
+});
+
+export const updatePhase = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { workspaceId, sprintId, phaseId } = req.params;
+  const { name, description, phaseOrder, startDate, endDate, status, color } = req.body;
+
+  const result = await pool.query(
+    `
+    UPDATE sprint_phases
+    SET
+      name = COALESCE($1, name),
+      description = COALESCE($2, description),
+      phase_order = COALESCE($3, phase_order),
+      start_date = COALESCE($4, start_date),
+      end_date = COALESCE($5, end_date),
+      status = COALESCE($6, status),
+      color = COALESCE($7, color)
+    WHERE id = $8 AND sprint_id = $9
+    RETURNING *
+    `,
+    [name, description, phaseOrder, startDate, endDate, status, color, phaseId, sprintId]
+  );
+
+  if (result.rows.length === 0) {
+    return res.status(404).json({ error: 'Phase not found' });
+  }
+
+  res.json(result.rows[0]);
+});
+
+export const deletePhase = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { workspaceId, sprintId, phaseId } = req.params;
+
+  await pool.query(
+    'DELETE FROM sprint_phases WHERE id = $1 AND sprint_id = $2',
+    [phaseId, sprintId]
+  );
+
+  res.json({ message: 'Phase deleted successfully' });
+});

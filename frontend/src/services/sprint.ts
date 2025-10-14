@@ -26,6 +26,7 @@ export interface Sprint {
 export interface SprintTask {
   id: string;
   sprint_id: string;
+  phase_id?: string;
   title: string;
   description?: string;
   task_type: 'content' | 'design' | 'social' | 'email' | 'sponsor' | 'analytics' | 'other';
@@ -87,6 +88,22 @@ export interface SprintMetrics {
   additional_metrics?: Record<string, any>;
 }
 
+export interface SprintPhase {
+  id: string;
+  sprint_id: string;
+  name: string;
+  description?: string;
+  phase_order: number;
+  start_date?: string;
+  end_date?: string;
+  status: 'pending' | 'active' | 'completed';
+  color: string;
+  created_at: string;
+  updated_at: string;
+  task_count?: number;
+  completed_task_count?: number;
+}
+
 export interface CreateSprintData {
   name: string;
   description?: string;
@@ -144,6 +161,25 @@ export interface UpdateMetricsData {
   conversions?: number;
   sponsorContacts?: number;
   additionalMetrics?: Record<string, any>;
+}
+
+export interface CreatePhaseData {
+  name: string;
+  description?: string;
+  phaseOrder: number;
+  startDate?: string;
+  endDate?: string;
+  color?: string;
+}
+
+export interface UpdatePhaseData {
+  name?: string;
+  description?: string;
+  phaseOrder?: number;
+  startDate?: string;
+  endDate?: string;
+  status?: 'pending' | 'active' | 'completed';
+  color?: string;
 }
 
 // ============ SPRINT API ============
@@ -234,4 +270,38 @@ export const updateMetrics = async (
 ): Promise<SprintMetrics> => {
   const response = await api.post(`/sprints/${workspaceId}/sprints/${sprintId}/metrics`, data);
   return response.data;
+};
+
+// ============ PHASE API ============
+
+export const getPhases = async (workspaceId: string, sprintId: string): Promise<SprintPhase[]> => {
+  const response = await api.get(`/sprints/${workspaceId}/sprints/${sprintId}/phases`);
+  return response.data.phases;
+};
+
+export const createPhase = async (
+  workspaceId: string,
+  sprintId: string,
+  data: CreatePhaseData
+): Promise<SprintPhase> => {
+  const response = await api.post(`/sprints/${workspaceId}/sprints/${sprintId}/phases`, data);
+  return response.data;
+};
+
+export const updatePhase = async (
+  workspaceId: string,
+  sprintId: string,
+  phaseId: string,
+  data: UpdatePhaseData
+): Promise<SprintPhase> => {
+  const response = await api.put(`/sprints/${workspaceId}/sprints/${sprintId}/phases/${phaseId}`, data);
+  return response.data;
+};
+
+export const deletePhase = async (
+  workspaceId: string,
+  sprintId: string,
+  phaseId: string
+): Promise<void> => {
+  await api.delete(`/sprints/${workspaceId}/sprints/${sprintId}/phases/${phaseId}`);
 };
