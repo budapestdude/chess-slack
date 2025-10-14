@@ -27,6 +27,7 @@ import {
   updateSprint,
   getPhases,
   createPhase,
+  updatePhase,
 } from '../services/sprint';
 import { CreateSprintModal, TaskModal, PhaseModal } from '../components/SprintModals';
 
@@ -52,6 +53,7 @@ const MarketingSprintPage: React.FC = () => {
   const [phases, setPhases] = useState<SprintPhase[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTask, setSelectedTask] = useState<SprintTask | null>(null);
+  const [selectedPhase, setSelectedPhase] = useState<SprintPhase | null>(null);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isSprintModalOpen, setIsSprintModalOpen] = useState(false);
   const [isPhaseModalOpen, setIsPhaseModalOpen] = useState(false);
@@ -113,6 +115,18 @@ const MarketingSprintPage: React.FC = () => {
       await loadPhases();
     } catch (error) {
       console.error('Error creating phase:', error);
+      throw error;
+    }
+  };
+
+  const handleUpdatePhase = async (data: any) => {
+    if (!selectedSprint || !selectedPhase) return;
+    try {
+      await updatePhase(workspaceId!, selectedSprint.id, selectedPhase.id, data);
+      await loadPhases();
+      setSelectedPhase(null);
+    } catch (error) {
+      console.error('Error updating phase:', error);
       throw error;
     }
   };
@@ -406,7 +420,11 @@ const MarketingSprintPage: React.FC = () => {
                 return (
                   <div
                     key={phase.id}
-                    className={`flex-shrink-0 w-48 p-3 border-2 rounded-lg ${getPhaseColorClasses(phase.color)}`}
+                    className={`flex-shrink-0 w-48 p-3 border-2 rounded-lg cursor-pointer hover:shadow-md transition-shadow ${getPhaseColorClasses(phase.color)}`}
+                    onClick={() => {
+                      setSelectedPhase(phase);
+                      setIsPhaseModalOpen(true);
+                    }}
                   >
                     <div className="flex items-start justify-between mb-2">
                       <span className="text-xs font-bold">Phase {phase.phase_order}</span>
@@ -527,12 +545,17 @@ const MarketingSprintPage: React.FC = () => {
         }}
         onSave={selectedTask ? handleUpdateTask : handleCreateTask}
         task={selectedTask}
+        phases={phases}
       />
       <PhaseModal
         isOpen={isPhaseModalOpen}
-        onClose={() => setIsPhaseModalOpen(false)}
-        onSave={handleCreatePhase}
+        onClose={() => {
+          setIsPhaseModalOpen(false);
+          setSelectedPhase(null);
+        }}
+        onSave={selectedPhase ? handleUpdatePhase : handleCreatePhase}
         maxPhaseOrder={phases.length > 0 ? Math.max(...phases.map(p => p.phase_order)) : 0}
+        phase={selectedPhase}
       />
     </div>
   );

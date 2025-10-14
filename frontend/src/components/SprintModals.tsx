@@ -237,6 +237,7 @@ interface TaskModalProps {
   onClose: () => void;
   onSave: (data: CreateTaskData) => Promise<void>;
   task?: SprintTask | null;
+  phases?: SprintPhase[];
 }
 
 export const TaskModal: React.FC<TaskModalProps> = ({
@@ -244,6 +245,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   onClose,
   onSave,
   task,
+  phases = [],
 }) => {
   const [title, setTitle] = useState(task?.title || '');
   const [description, setDescription] = useState(task?.description || '');
@@ -251,6 +253,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const [priority, setPriority] = useState(task?.priority || 'medium');
   const [dueDate, setDueDate] = useState(task?.due_date?.split('T')[0] || '');
   const [estimatedHours, setEstimatedHours] = useState(task?.estimated_hours?.toString() || '');
+  const [phaseId, setPhaseId] = useState(task?.phase_id || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -262,6 +265,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       setPriority(task.priority);
       setDueDate(task.due_date?.split('T')[0] || '');
       setEstimatedHours(task.estimated_hours?.toString() || '');
+      setPhaseId(task.phase_id || '');
     } else {
       setTitle('');
       setDescription('');
@@ -269,6 +273,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       setPriority('medium');
       setDueDate('');
       setEstimatedHours('');
+      setPhaseId('');
     }
   }, [task, isOpen]);
 
@@ -290,6 +295,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
         priority: priority as any,
         dueDate: dueDate || undefined,
         estimatedHours: estimatedHours ? parseFloat(estimatedHours) : undefined,
+        phaseId: phaseId || undefined,
       });
       onClose();
     } catch (err) {
@@ -410,6 +416,28 @@ export const TaskModal: React.FC<TaskModalProps> = ({
             </div>
           </div>
 
+          {/* Phase Selection */}
+          {phases.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                <Layers className="w-4 h-4" />
+                Sprint Phase
+              </label>
+              <select
+                value={phaseId}
+                onChange={(e) => setPhaseId(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">No Phase</option>
+                {phases.map((phase) => (
+                  <option key={phase.id} value={phase.id}>
+                    Phase {phase.phase_order}: {phase.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Error Message */}
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -455,6 +483,7 @@ interface PhaseModalProps {
   onClose: () => void;
   onSave: (data: CreatePhaseData) => Promise<void>;
   maxPhaseOrder: number;
+  phase?: SprintPhase | null;
 }
 
 export const PhaseModal: React.FC<PhaseModalProps> = ({
@@ -462,27 +491,35 @@ export const PhaseModal: React.FC<PhaseModalProps> = ({
   onClose,
   onSave,
   maxPhaseOrder,
+  phase,
 }) => {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [phaseOrder, setPhaseOrder] = useState(maxPhaseOrder + 1);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [color, setColor] = useState('blue');
+  const [name, setName] = useState(phase?.name || '');
+  const [description, setDescription] = useState(phase?.description || '');
+  const [phaseOrder, setPhaseOrder] = useState(phase?.phase_order || maxPhaseOrder + 1);
+  const [startDate, setStartDate] = useState(phase?.start_date?.split('T')[0] || '');
+  const [endDate, setEndDate] = useState(phase?.end_date?.split('T')[0] || '');
+  const [color, setColor] = useState(phase?.color || 'blue');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   React.useEffect(() => {
-    if (isOpen) {
+    if (phase) {
+      setName(phase.name);
+      setDescription(phase.description || '');
+      setPhaseOrder(phase.phase_order);
+      setStartDate(phase.start_date?.split('T')[0] || '');
+      setEndDate(phase.end_date?.split('T')[0] || '');
+      setColor(phase.color);
+    } else {
       setName('');
       setDescription('');
       setPhaseOrder(maxPhaseOrder + 1);
       setStartDate('');
       setEndDate('');
       setColor('blue');
-      setError('');
     }
-  }, [isOpen, maxPhaseOrder]);
+    setError('');
+  }, [isOpen, maxPhaseOrder, phase]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -541,7 +578,7 @@ export const PhaseModal: React.FC<PhaseModalProps> = ({
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-xl">
           <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
             <Layers className="w-5 h-5" />
-            Create Sprint Phase
+            {phase ? 'Edit Sprint Phase' : 'Create Sprint Phase'}
           </h2>
           <button
             onClick={onClose}
@@ -660,10 +697,10 @@ export const PhaseModal: React.FC<PhaseModalProps> = ({
               {isSubmitting ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Creating...
+                  {phase ? 'Updating...' : 'Creating...'}
                 </>
               ) : (
-                'Create Phase'
+                phase ? 'Update Phase' : 'Create Phase'
               )}
             </button>
           </div>

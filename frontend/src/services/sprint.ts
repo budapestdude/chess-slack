@@ -137,6 +137,7 @@ export interface CreateTaskData {
   assignedTo?: string;
   dueDate?: string;
   estimatedHours?: number;
+  phaseId?: string;
   dependencies?: string[];
   checklist?: ChecklistItem[];
   attachments?: Attachment[];
