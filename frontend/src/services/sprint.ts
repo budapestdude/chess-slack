@@ -197,7 +197,9 @@ export const getSprint = async (workspaceId: string, sprintId: string): Promise<
 };
 
 export const createSprint = async (workspaceId: string, data: CreateSprintData): Promise<Sprint> => {
+  console.log('Creating sprint with workspaceId:', workspaceId, 'data:', data);
   const response = await api.post(`/sprints/${workspaceId}/sprints`, data);
+  console.log('Sprint created:', response.data);
   return response.data;
 };
 

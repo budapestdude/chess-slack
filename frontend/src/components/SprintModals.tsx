@@ -41,6 +41,15 @@ export const CreateSprintModal: React.FC<CreateSprintModalProps> = ({
 
     setIsSubmitting(true);
     try {
+      console.log('CreateSprintModal onSave called with:', {
+        name,
+        description,
+        goal,
+        startDate,
+        endDate,
+        budget,
+        targetAudience,
+      });
       await onSave({
         name,
         description: description || undefined,
@@ -50,6 +59,7 @@ export const CreateSprintModal: React.FC<CreateSprintModalProps> = ({
         budget: budget ? parseFloat(budget) : undefined,
         targetAudience: targetAudience || undefined,
       });
+      console.log('CreateSprintModal onSave succeeded');
       // Reset form
       setName('');
       setDescription('');

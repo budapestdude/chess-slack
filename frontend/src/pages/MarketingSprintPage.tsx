@@ -151,8 +151,10 @@ const MarketingSprintPage: React.FC = () => {
   };
 
   const handleCreateSprint = async (data: any) => {
+    console.log('handleCreateSprint called with:', data, 'workspaceId:', workspaceId);
     try {
       const newSprint = await createSprint(workspaceId!, data);
+      console.log('Sprint created successfully:', newSprint);
       await loadSprints();
       setSelectedSprint(newSprint);
     } catch (error) {
