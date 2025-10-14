@@ -59,6 +59,8 @@ console.log('  - marketingRoutes...');
 import marketingRoutes from './routes/marketingRoutes';
 console.log('  - sprintRoutes...');
 import sprintRoutes from './routes/sprintRoutes';
+console.log('  - meetingNotesRoutes...');
+import meetingNotesRoutes from './routes/meetingNotesRoutes';
 console.log('✅ All routes imported');
 
 // import agentRoutes from './routes/agentRoutes';
@@ -166,6 +168,7 @@ app.use('/api/personal', personalRoutes);
 app.use('/api/crm', crmRoutes);
 app.use('/api/marketing', marketingRoutes);
 app.use('/api/sprints', sprintRoutes);
+app.use('/api/workspaces', meetingNotesRoutes);
 app.use('/api/dms', dmRoutes);
 app.use('/api/users', userRoutes);
 

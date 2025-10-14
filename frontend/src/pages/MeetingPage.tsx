@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Calendar as CalendarIcon,
@@ -23,6 +23,7 @@ import {
   User,
   Sparkles,
 } from 'lucide-react';
+import * as meetingNotesApi from '../services/meetingNotes';
 
 /**
  * MeetingPage Component
@@ -153,21 +154,18 @@ const MeetingPage: React.FC = () => {
 // Meeting Notes Tool
 // ============================================================================
 
-interface MeetingNote {
-  id: string;
-  title: string;
-  date: Date;
-  attendees: string[];
-  agenda: string[];
-  notes: string;
-  actionItems: { id: string; text: string; assignee: string; completed: boolean }[];
-  template: string;
-}
+// Use the API types
+type MeetingNote = meetingNotesApi.MeetingNote;
+type ActionItem = meetingNotesApi.ActionItem;
 
 const MeetingNotesTool: React.FC = () => {
+  const { workspaceId } = useParams<{ workspaceId: string }>();
   const [notes, setNotes] = useState<MeetingNote[]>([]);
   const [editingNote, setEditingNote] = useState<MeetingNote | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('blank');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const templates = {
     blank: {
@@ -192,40 +190,103 @@ const MeetingNotesTool: React.FC = () => {
     },
   };
 
+  // Load notes from backend
+  const loadNotes = useCallback(async () => {
+    if (!workspaceId) return;
+    setIsLoading(true);
+    try {
+      const fetchedNotes = await meetingNotesApi.getMeetingNotes(workspaceId);
+      setNotes(fetchedNotes);
+    } catch (error) {
+      console.error('Failed to load meeting notes:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [workspaceId]);
+
+  // Load notes on mount
+  useEffect(() => {
+    loadNotes();
+  }, [loadNotes]);
+
   const createNewNote = () => {
     const template = templates[selectedTemplate as keyof typeof templates];
-    const newNote: MeetingNote = {
-      id: Date.now().toString(),
+    // Create a temporary note for editing (not yet in DB)
+    const newNote: Partial<MeetingNote> & { id: string } = {
+      id: 'temp-' + Date.now().toString(),
+      workspace_id: workspaceId!,
       title: 'New Meeting',
-      date: new Date(),
+      date: new Date().toISOString(),
       attendees: [],
       agenda: template.agenda,
       notes: '',
-      actionItems: [],
+      action_items: [],
       template: selectedTemplate,
+      created_by: '', // Will be set by backend
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
-    setEditingNote(newNote);
+    setEditingNote(newNote as MeetingNote);
   };
 
-  const saveNote = () => {
-    if (!editingNote) return;
+  const saveNote = async () => {
+    if (!editingNote || !workspaceId) return;
+    setIsSaving(true);
+    try {
+      const isNew = editingNote.id.startsWith('temp-');
 
-    const exists = notes.find(n => n.id === editingNote.id);
-    if (exists) {
-      setNotes(notes.map(n => n.id === editingNote.id ? editingNote : n));
-    } else {
-      setNotes([editingNote, ...notes]);
+      if (isNew) {
+        // Create new note
+        const createData: meetingNotesApi.CreateMeetingNoteData = {
+          title: editingNote.title,
+          date: editingNote.date,
+          attendees: editingNote.attendees,
+          agenda: editingNote.agenda,
+          notes: editingNote.notes,
+          actionItems: editingNote.action_items,
+          template: editingNote.template,
+        };
+        await meetingNotesApi.createMeetingNote(workspaceId, createData);
+      } else {
+        // Update existing note
+        const updateData: meetingNotesApi.UpdateMeetingNoteData = {
+          title: editingNote.title,
+          date: editingNote.date,
+          attendees: editingNote.attendees,
+          agenda: editingNote.agenda,
+          notes: editingNote.notes,
+          actionItems: editingNote.action_items,
+          template: editingNote.template,
+        };
+        await meetingNotesApi.updateMeetingNote(workspaceId, editingNote.id, updateData);
+      }
+
+      await loadNotes();
+      setEditingNote(null);
+    } catch (error) {
+      console.error('Failed to save meeting note:', error);
+      alert('Failed to save meeting note. Please try again.');
+    } finally {
+      setIsSaving(false);
     }
-    setEditingNote(null);
   };
 
-  const deleteNote = (noteId: string) => {
-    setNotes(notes.filter(n => n.id !== noteId));
+  const deleteNote = async (noteId: string) => {
+    if (!workspaceId) return;
+    if (!confirm('Are you sure you want to delete this meeting note?')) return;
+
+    try {
+      await meetingNotesApi.deleteMeetingNote(workspaceId, noteId);
+      setNotes(notes.filter(n => n.id !== noteId));
+    } catch (error) {
+      console.error('Failed to delete meeting note:', error);
+      alert('Failed to delete meeting note. Please try again.');
+    }
   };
 
   const addActionItem = () => {
     if (!editingNote) return;
-    const newItem = {
+    const newItem: ActionItem = {
       id: Date.now().toString(),
       text: '',
       assignee: '',
@@ -233,27 +294,68 @@ const MeetingNotesTool: React.FC = () => {
     };
     setEditingNote({
       ...editingNote,
-      actionItems: [...editingNote.actionItems, newItem],
+      action_items: [...editingNote.action_items, newItem],
     });
   };
 
-  const updateActionItem = (itemId: string, updates: Partial<typeof editingNote.actionItems[0]>) => {
+  const updateActionItem = (itemId: string, updates: Partial<ActionItem>) => {
     if (!editingNote) return;
     setEditingNote({
       ...editingNote,
-      actionItems: editingNote.actionItems.map(item =>
+      action_items: editingNote.action_items.map(item =>
         item.id === itemId ? { ...item, ...updates } : item
       ),
     });
+    triggerAutoSave();
   };
 
   const deleteActionItem = (itemId: string) => {
     if (!editingNote) return;
     setEditingNote({
       ...editingNote,
-      actionItems: editingNote.actionItems.filter(item => item.id !== itemId),
+      action_items: editingNote.action_items.filter(item => item.id !== itemId),
     });
+    triggerAutoSave();
   };
+
+  // Auto-save functionality
+  const triggerAutoSave = useCallback(() => {
+    if (!editingNote || !workspaceId) return;
+    if (editingNote.id.startsWith('temp-')) return; // Don't auto-save new notes
+
+    // Clear existing timeout
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+
+    // Set new timeout
+    autoSaveTimeoutRef.current = setTimeout(async () => {
+      try {
+        const updateData: meetingNotesApi.UpdateMeetingNoteData = {
+          title: editingNote.title,
+          date: editingNote.date,
+          attendees: editingNote.attendees,
+          agenda: editingNote.agenda,
+          notes: editingNote.notes,
+          actionItems: editingNote.action_items,
+          template: editingNote.template,
+        };
+        await meetingNotesApi.updateMeetingNote(workspaceId, editingNote.id, updateData);
+        console.log('Meeting note auto-saved');
+      } catch (error) {
+        console.error('Failed to auto-save meeting note:', error);
+      }
+    }, 2000); // 2 second delay
+  }, [editingNote, workspaceId]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   if (editingNote) {
     return (
@@ -270,10 +372,11 @@ const MeetingNotesTool: React.FC = () => {
               </button>
               <button
                 onClick={saveNote}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                disabled={isSaving}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Save className="w-4 h-4" />
-                Save
+                {isSaving ? 'Saving...' : 'Save'}
               </button>
             </div>
           </div>
@@ -283,7 +386,10 @@ const MeetingNotesTool: React.FC = () => {
               <input
                 type="text"
                 value={editingNote.title}
-                onChange={(e) => setEditingNote({ ...editingNote, title: e.target.value })}
+                onChange={(e) => {
+                  setEditingNote({ ...editingNote, title: e.target.value });
+                  triggerAutoSave();
+                }}
                 className="w-full text-3xl font-bold border-none focus:outline-none mb-4"
                 placeholder="Meeting Title"
               />
@@ -293,8 +399,11 @@ const MeetingNotesTool: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Date & Time</label>
                   <input
                     type="datetime-local"
-                    value={editingNote.date.toISOString().slice(0, 16)}
-                    onChange={(e) => setEditingNote({ ...editingNote, date: new Date(e.target.value) })}
+                    value={new Date(editingNote.date).toISOString().slice(0, 16)}
+                    onChange={(e) => {
+                      setEditingNote({ ...editingNote, date: new Date(e.target.value).toISOString() });
+                      triggerAutoSave();
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   />
                 </div>
@@ -303,7 +412,10 @@ const MeetingNotesTool: React.FC = () => {
                   <input
                     type="text"
                     value={editingNote.attendees.join(', ')}
-                    onChange={(e) => setEditingNote({ ...editingNote, attendees: e.target.value.split(',').map(a => a.trim()).filter(Boolean) })}
+                    onChange={(e) => {
+                      setEditingNote({ ...editingNote, attendees: e.target.value.split(',').map(a => a.trim()).filter(Boolean) });
+                      triggerAutoSave();
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                     placeholder="John, Jane, etc."
                   />
@@ -328,7 +440,10 @@ const MeetingNotesTool: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
                 <textarea
                   value={editingNote.notes}
-                  onChange={(e) => setEditingNote({ ...editingNote, notes: e.target.value })}
+                  onChange={(e) => {
+                    setEditingNote({ ...editingNote, notes: e.target.value });
+                    triggerAutoSave();
+                  }}
                   rows={10}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   placeholder="Meeting notes..."
@@ -349,7 +464,7 @@ const MeetingNotesTool: React.FC = () => {
               </div>
 
               <div className="space-y-3">
-                {editingNote.actionItems.map(item => (
+                {editingNote.action_items.map(item => (
                   <div key={item.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
                     <input
                       type="checkbox"
@@ -417,7 +532,11 @@ const MeetingNotesTool: React.FC = () => {
           </div>
         </div>
 
-        {notes.length === 0 ? (
+        {isLoading ? (
+          <div className="text-center py-12 bg-white rounded-lg shadow">
+            <p className="text-gray-500">Loading meeting notes...</p>
+          </div>
+        ) : notes.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-lg shadow">
             <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500">No meeting notes yet. Create one to get started!</p>
@@ -432,7 +551,7 @@ const MeetingNotesTool: React.FC = () => {
                     <div className="flex items-center gap-4 text-sm text-gray-500">
                       <span className="flex items-center gap-1">
                         <CalendarIcon className="w-4 h-4" />
-                        {note.date.toLocaleDateString()}
+                        {new Date(note.date).toLocaleDateString()}
                       </span>
                       <span className="flex items-center gap-1">
                         <Users className="w-4 h-4" />
@@ -440,7 +559,7 @@ const MeetingNotesTool: React.FC = () => {
                       </span>
                       <span className="flex items-center gap-1">
                         <ClipboardList className="w-4 h-4" />
-                        {note.actionItems.length} action items
+                        {note.action_items.length} action items
                       </span>
                     </div>
                   </div>
@@ -460,18 +579,18 @@ const MeetingNotesTool: React.FC = () => {
                   </div>
                 </div>
 
-                {note.actionItems.length > 0 && (
+                {note.action_items.length > 0 && (
                   <div className="mt-4 pt-4 border-t border-gray-200">
                     <h4 className="text-sm font-semibold text-gray-700 mb-2">Action Items:</h4>
                     <ul className="space-y-1">
-                      {note.actionItems.slice(0, 3).map(item => (
+                      {note.action_items.slice(0, 3).map(item => (
                         <li key={item.id} className="text-sm text-gray-600 flex items-center gap-2">
                           <Check className={`w-4 h-4 ${item.completed ? 'text-green-500' : 'text-gray-300'}`} />
                           {item.text} {item.assignee && <span className="text-gray-400">({item.assignee})</span>}
                         </li>
                       ))}
-                      {note.actionItems.length > 3 && (
-                        <li className="text-sm text-gray-400">+{note.actionItems.length - 3} more</li>
+                      {note.action_items.length > 3 && (
+                        <li className="text-sm text-gray-400">+{note.action_items.length - 3} more</li>
                       )}
                     </ul>
                   </div>
