@@ -59,6 +59,16 @@ const MarketingPage: React.FC = () => {
 
   const tools = [
     {
+      id: 'sprints',
+      name: 'Marketing Sprints',
+      icon: TrendingUp,
+      color: 'orange',
+      description: 'Sprint-based campaign management with kanban board',
+      features: ['Sprint Planning', 'Task Board', 'Team Management', 'Metrics'],
+      isExternal: true,
+      path: 'sprints'
+    },
+    {
       id: 'sponsors',
       name: 'Sponsorships',
       icon: Handshake,
@@ -111,6 +121,7 @@ const MarketingPage: React.FC = () => {
 
   const getColorClasses = (color: string) => {
     const colors: Record<string, { gradient: string; border: string; bg: string; text: string }> = {
+      orange: { gradient: 'from-orange-500 to-orange-600', border: 'border-orange-500', bg: 'bg-orange-50', text: 'text-orange-600' },
       purple: { gradient: 'from-purple-500 to-purple-600', border: 'border-purple-500', bg: 'bg-purple-50', text: 'text-purple-600' },
       blue: { gradient: 'from-blue-500 to-blue-600', border: 'border-blue-500', bg: 'bg-blue-50', text: 'text-blue-600' },
       pink: { gradient: 'from-pink-500 to-pink-600', border: 'border-pink-500', bg: 'bg-pink-50', text: 'text-pink-600' },
@@ -173,7 +184,13 @@ const MarketingPage: React.FC = () => {
             return (
               <div
                 key={tool.id}
-                onClick={() => navigate(`/workspace/${workspaceId}/marketing?tool=${tool.id}`)}
+                onClick={() => {
+                  if (tool.isExternal && tool.path) {
+                    navigate(`/workspace/${workspaceId}/marketing/${tool.path}`);
+                  } else {
+                    navigate(`/workspace/${workspaceId}/marketing?tool=${tool.id}`);
+                  }
+                }}
                 className="group cursor-pointer bg-white rounded-2xl shadow-lg border-2 border-gray-200 hover:border-gray-400 p-6 transition-all duration-300 hover:shadow-2xl hover:scale-105"
               >
                 <div className="flex items-start gap-4 mb-4">
