@@ -187,8 +187,17 @@ export interface UpdatePhaseData {
 
 export const getSprints = async (workspaceId: string, status?: string): Promise<Sprint[]> => {
   const params = status ? `?status=${status}` : '';
-  const response = await api.get(`/sprints/${workspaceId}/sprints${params}`);
-  return response.data.sprints;
+  const url = `/sprints/${workspaceId}/sprints${params}`;
+  console.log('getSprints: calling API with URL:', url);
+  try {
+    const response = await api.get(url);
+    console.log('getSprints: response status:', response.status);
+    console.log('getSprints: response data:', response.data);
+    return response.data.sprints;
+  } catch (error) {
+    console.error('getSprints: API call failed:', error);
+    throw error;
+  }
 };
 
 export const getSprint = async (workspaceId: string, sprintId: string): Promise<Sprint> => {

@@ -76,13 +76,25 @@ const MarketingSprintPage: React.FC = () => {
   const loadSprints = async () => {
     try {
       setLoading(true);
+      console.log('loadSprints: fetching sprints for workspace:', workspaceId);
       const data = await getSprints(workspaceId!, 'active');
+      console.log('loadSprints: received data:', data);
       setSprints(data);
       if (data.length > 0 && !selectedSprint) {
         setSelectedSprint(data[0]);
       }
     } catch (error) {
       console.error('Error loading sprints:', error);
+      console.error('Error type:', typeof error);
+      console.error('Error constructor:', error?.constructor?.name);
+      if (error && typeof error === 'object') {
+        console.error('Error keys:', Object.keys(error));
+        console.error('Error stringified:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+      }
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+      }
     } finally {
       setLoading(false);
     }
