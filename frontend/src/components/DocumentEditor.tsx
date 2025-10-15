@@ -108,8 +108,12 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
   }, [document.id]);
 
   const handleAutoSave = async () => {
-    console.log('handleAutoSave called - title:', title, 'content length:', content?.length || 0);
-    if (!title && !content) {
+    // Always get the latest content from the contentEditable
+    const currentContent = contentEditableRef.current?.innerHTML || content || '';
+    console.log('handleAutoSave called - title:', title, 'content length:', currentContent?.length || 0);
+    console.log('Content includes table:', currentContent.includes('<table'));
+
+    if (!title && !currentContent) {
       console.log('Skipping auto-save: both title and content are empty');
       return;
     }
@@ -118,7 +122,7 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
     try {
       const updateData: any = {
         title: title || 'Untitled',
-        content: content || '',
+        content: currentContent,
         icon: icon || undefined,
       };
 
@@ -262,9 +266,19 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
 
   const handlePaste = (e: React.ClipboardEvent) => {
     // Let the default paste happen, then capture the content
+    // Need a longer delay to ensure paste completes
     setTimeout(() => {
-      handleContentInput();
-    }, 10);
+      if (contentEditableRef.current) {
+        const newContent = contentEditableRef.current.innerHTML;
+        console.log('Paste detected - content length:', newContent.length);
+        console.log('Content includes table:', newContent.includes('<table'));
+        setContent(newContent);
+        // Force immediate save after paste
+        setTimeout(() => {
+          handleAutoSave();
+        }, 100);
+      }
+    }, 100);
   };
 
   const formatDate = (date: string) => {
@@ -401,6 +415,15 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
 
                 {/* Actions */}
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleAutoSave()}
+                    disabled={isSaving}
+                    className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-sm font-medium disabled:opacity-50"
+                  >
+                    <Save className="w-4 h-4" />
+                    Save
+                  </button>
+
                   {isSaving ? (
                     <span className="text-xs text-gray-500 flex items-center gap-2">
                       <div className="w-3 h-3 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin" />
