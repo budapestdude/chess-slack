@@ -554,6 +554,11 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
                 prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-pre:p-4 prose-pre:rounded-lg
                 prose-ul:list-disc prose-ol:list-decimal
                 prose-img:rounded-lg prose-img:shadow-md
+                prose-table:border-collapse prose-table:w-full
+                prose-th:border prose-th:border-gray-300 prose-th:bg-gray-100 prose-th:px-4 prose-th:py-2 prose-th:text-left prose-th:font-semibold
+                prose-td:border prose-td:border-gray-300 prose-td:px-4 prose-td:py-2
+                prose-thead:bg-gray-50
+                prose-tr:border-b prose-tr:border-gray-200
               `}
               suppressContentEditableWarning
             />
