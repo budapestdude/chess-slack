@@ -466,7 +466,7 @@ const MarketingSprintPage: React.FC = () => {
       </div>
 
       {/* Kanban Board */}
-      <div className="flex-1 overflow-x-auto p-6">
+      <div className="flex-1 overflow-x-auto overflow-y-auto p-6">
         <div className="grid grid-cols-4 gap-6 min-w-[1200px]">
           {columns.map((column) => (
             <div key={column.id} className="flex flex-col">
