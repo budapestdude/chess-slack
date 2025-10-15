@@ -23,6 +23,7 @@ import {
   Users,
   Smile,
   X,
+  Table,
 } from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
 import {
@@ -226,6 +227,46 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
     }
   };
 
+  const insertTable = () => {
+    const rows = prompt('Number of rows:', '3');
+    const cols = prompt('Number of columns:', '3');
+
+    if (rows && cols) {
+      const rowCount = parseInt(rows);
+      const colCount = parseInt(cols);
+
+      let tableHTML = '<table><thead><tr>';
+      for (let i = 0; i < colCount; i++) {
+        tableHTML += '<th>Header ' + (i + 1) + '</th>';
+      }
+      tableHTML += '</tr></thead><tbody>';
+
+      for (let i = 0; i < rowCount - 1; i++) {
+        tableHTML += '<tr>';
+        for (let j = 0; j < colCount; j++) {
+          tableHTML += '<td>Cell</td>';
+        }
+        tableHTML += '</tr>';
+      }
+
+      tableHTML += '</tbody></table><p><br></p>';
+
+      executeFormatCommand('insertHTML', tableHTML);
+
+      // Capture content immediately after inserting table
+      setTimeout(() => {
+        handleContentInput();
+      }, 100);
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    // Let the default paste happen, then capture the content
+    setTimeout(() => {
+      handleContentInput();
+    }, 10);
+  };
+
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('en-US', {
       month: 'short',
@@ -343,6 +384,17 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
                   title="Code Block"
                 >
                   <Code className="w-4 h-4 text-gray-700" />
+                </button>
+
+                <div className="w-px h-6 bg-gray-300 mx-2" />
+
+                {/* Table */}
+                <button
+                  onClick={insertTable}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  title="Insert Table"
+                >
+                  <Table className="w-4 h-4 text-gray-700" />
                 </button>
 
                 <div className="flex-1" />
@@ -544,6 +596,7 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
               ref={contentEditableRef}
               contentEditable={canEdit}
               onInput={handleContentInput}
+              onPaste={handlePaste}
               className={`
                 prose prose-lg max-w-none min-h-[400px] focus:outline-none
                 ${canEdit ? '' : 'cursor-not-allowed'}
