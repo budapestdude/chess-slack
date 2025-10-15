@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useState, useEffect } from 'react';
 import { RootState } from '../store';
 import { Workspace, Channel } from '../types';
-import { PlusIcon, HashtagIcon, LockClosedIcon, ChatBubbleLeftRightIcon, Cog6ToothIcon, MagnifyingGlassIcon, StarIcon, BellSlashIcon, UserPlusIcon, ArchiveBoxIcon, CpuChipIcon, ClipboardDocumentListIcon, CheckCircleIcon, DocumentTextIcon, WrenchScrewdriverIcon, LightBulbIcon, PencilSquareIcon, ChartBarIcon, DocumentDuplicateIcon, CalendarIcon, ClockIcon, MegaphoneIcon, BriefcaseIcon, UsersIcon, CurrencyDollarIcon, TrophyIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, HashtagIcon, LockClosedIcon, ChatBubbleLeftRightIcon, Cog6ToothIcon, MagnifyingGlassIcon, StarIcon, BellSlashIcon, UserPlusIcon, ArchiveBoxIcon, CpuChipIcon, ClipboardDocumentListIcon, CheckCircleIcon, DocumentTextIcon, WrenchScrewdriverIcon, LightBulbIcon, PencilSquareIcon, ChartBarIcon, DocumentDuplicateIcon, CalendarIcon, ClockIcon, MegaphoneIcon, BriefcaseIcon, UsersIcon, CurrencyDollarIcon, TrophyIcon, ArrowTrendingUpIcon as TrendingUp } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import clsx from 'clsx';
 import { dmService, DMGroup } from '../services/dm';
@@ -484,44 +484,49 @@ export default function Sidebar({
           </div>
         )}
 
-        {/* Marketing & Promotion section - Only for tournament workspaces */}
-        {workspace.workspaceType === 'tournament' && (
-          <div className="p-4 border-t border-gray-700">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold text-gray-300">Marketing</h3>
-            </div>
-            <div className="space-y-1">
-              <button
-                onClick={() => navigate(`/workspace/${workspaceId}/marketing?tool=emails`)}
-                className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
-              >
-                <MegaphoneIcon className="w-4 h-4 flex-shrink-0" />
-                <span className="truncate text-sm">Email Campaigns</span>
-              </button>
-              <button
-                onClick={() => navigate(`/workspace/${workspaceId}/marketing?tool=social`)}
-                className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
-              >
-                <UsersIcon className="w-4 h-4 flex-shrink-0" />
-                <span className="truncate text-sm">Social Media</span>
-              </button>
-              <button
-                onClick={() => navigate(`/workspace/${workspaceId}/marketing?tool=graphics`)}
-                className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
-              >
-                <PencilSquareIcon className="w-4 h-4 flex-shrink-0" />
-                <span className="truncate text-sm">Graphics & Posters</span>
-              </button>
-              <button
-                onClick={() => navigate(`/workspace/${workspaceId}/marketing?tool=sponsors`)}
-                className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
-              >
-                <BriefcaseIcon className="w-4 h-4 flex-shrink-0" />
-                <span className="truncate text-sm">Sponsorships</span>
-              </button>
-            </div>
+        {/* Marketing section */}
+        <div className="p-4 border-t border-gray-700">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold text-gray-300">Marketing</h3>
           </div>
-        )}
+          <div className="space-y-1">
+            <button
+              onClick={() => navigate(`/workspace/${workspaceId}/marketing/sprints`)}
+              className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
+            >
+              <TrendingUp className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate text-sm">Marketing Sprints</span>
+            </button>
+            <button
+              onClick={() => navigate(`/workspace/${workspaceId}/marketing?tool=emails`)}
+              className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
+            >
+              <MegaphoneIcon className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate text-sm">Email Campaigns</span>
+            </button>
+            <button
+              onClick={() => navigate(`/workspace/${workspaceId}/marketing?tool=social`)}
+              className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
+            >
+              <UsersIcon className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate text-sm">Social Media</span>
+            </button>
+            <button
+              onClick={() => navigate(`/workspace/${workspaceId}/marketing?tool=graphics`)}
+              className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
+            >
+              <PencilSquareIcon className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate text-sm">Graphics & Posters</span>
+            </button>
+            <button
+              onClick={() => navigate(`/workspace/${workspaceId}/marketing?tool=sponsors`)}
+              className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
+            >
+              <BriefcaseIcon className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate text-sm">Sponsorships</span>
+            </button>
+          </div>
+        </div>
 
         {/* AI Agents section - Only for standard workspaces */}
         {workspace.workspaceType !== 'tournament' && (
