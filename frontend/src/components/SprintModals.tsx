@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Calendar, Target, DollarSign, Users as UsersIcon, Layers, Paperclip, FileText, Image as ImageIcon, File, Mail } from 'lucide-react';
+import { X, Calendar, Target, DollarSign, Users as UsersIcon, Layers, Paperclip, FileText, Image as ImageIcon, File, Mail, Trash2 } from 'lucide-react';
 import { Sprint, CreateSprintData, SprintTask, CreateTaskData, SprintPhase, CreatePhaseData, Attachment } from '../services/sprint';
 
 // ============ CREATE SPRINT MODAL ============
@@ -247,6 +247,7 @@ interface TaskModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: CreateTaskData) => Promise<void>;
+  onDelete?: () => Promise<void>;
   task?: SprintTask | null;
   phases?: SprintPhase[];
 }
@@ -255,6 +256,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   isOpen,
   onClose,
   onSave,
+  onDelete,
   task,
   phases = [],
 }) => {
@@ -318,6 +320,24 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       onClose();
     } catch (err) {
       setError('Failed to save task. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!onDelete || !task) return;
+
+    if (!window.confirm('Are you sure you want to delete this task? This action cannot be undone.')) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await onDelete();
+      onClose();
+    } catch (err) {
+      setError('Failed to delete task. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -577,6 +597,17 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
           {/* Actions */}
           <div className="flex gap-3 pt-4 border-t border-gray-200">
+            {task && onDelete && (
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={isSubmitting}
+                className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete
+              </button>
+            )}
             <button
               type="button"
               onClick={onClose}
@@ -612,6 +643,7 @@ interface PhaseModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: CreatePhaseData) => Promise<void>;
+  onDelete?: () => Promise<void>;
   maxPhaseOrder: number;
   phase?: SprintPhase | null;
 }
@@ -620,6 +652,7 @@ export const PhaseModal: React.FC<PhaseModalProps> = ({
   isOpen,
   onClose,
   onSave,
+  onDelete,
   maxPhaseOrder,
   phase,
 }) => {
@@ -678,6 +711,24 @@ export const PhaseModal: React.FC<PhaseModalProps> = ({
       onClose();
     } catch (err) {
       setError('Failed to create phase. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!onDelete || !phase) return;
+
+    if (!window.confirm('Are you sure you want to delete this phase? This action cannot be undone.')) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await onDelete();
+      onClose();
+    } catch (err) {
+      setError('Failed to delete phase. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -811,6 +862,17 @@ export const PhaseModal: React.FC<PhaseModalProps> = ({
 
           {/* Actions */}
           <div className="flex gap-3 pt-4 border-t border-gray-200">
+            {phase && onDelete && (
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={isSubmitting}
+                className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete
+              </button>
+            )}
             <button
               type="button"
               onClick={onClose}

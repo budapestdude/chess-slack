@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   Play,
   Plus,
@@ -13,6 +13,7 @@ import {
   BarChart3,
   Filter,
   Layers,
+  Trash2,
 } from 'lucide-react';
 import {
   Sprint,
@@ -24,9 +25,11 @@ import {
   updateTask,
   deleteTask,
   updateSprint,
+  deleteSprint,
   getPhases,
   createPhase,
   updatePhase,
+  deletePhase,
 } from '../services/sprint';
 import { TaskModal, PhaseModal } from '../components/SprintModals';
 
@@ -46,6 +49,7 @@ const columns: Column[] = [
 
 const MarketingSprintPage: React.FC = () => {
   const { workspaceId, sprintId } = useParams<{ workspaceId: string; sprintId: string }>();
+  const navigate = useNavigate();
   const [sprint, setSprint] = useState<Sprint | null>(null);
   const [tasks, setTasks] = useState<SprintTask[]>([]);
   const [phases, setPhases] = useState<SprintPhase[]>([]);
@@ -167,6 +171,42 @@ const MarketingSprintPage: React.FC = () => {
     }
   };
 
+  const handleDeleteSprint = async () => {
+    if (!sprint) return;
+    if (!window.confirm('Are you sure you want to delete this sprint? This will delete all tasks and phases. This action cannot be undone.')) {
+      return;
+    }
+    try {
+      await deleteSprint(workspaceId!, sprint.id);
+      navigate(`/workspace/${workspaceId}/marketing/sprints`);
+    } catch (error) {
+      console.error('Error deleting sprint:', error);
+      alert('Failed to delete sprint. Please try again.');
+    }
+  };
+
+  const handleDeleteTask = async () => {
+    if (!sprint || !selectedTask) return;
+    try {
+      await deleteTask(workspaceId!, sprint.id, selectedTask.id);
+      await loadTasks();
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      throw error;
+    }
+  };
+
+  const handleDeletePhase = async () => {
+    if (!sprint || !selectedPhase) return;
+    try {
+      await deletePhase(workspaceId!, sprint.id, selectedPhase.id);
+      await loadPhases();
+    } catch (error) {
+      console.error('Error deleting phase:', error);
+      throw error;
+    }
+  };
+
   const getTasksByStatus = (status: SprintTask['status']) => {
     return tasks.filter((task) => {
       const matchesStatus = task.status === status;
@@ -262,6 +302,13 @@ const MarketingSprintPage: React.FC = () => {
             >
               <Play className="w-4 h-4" />
               {sprint.status === 'active' ? 'Active' : 'Start Sprint'}
+            </button>
+            <button
+              onClick={handleDeleteSprint}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+            >
+              <Trash2 className="w-5 h-5" />
+              Delete Sprint
             </button>
             <button
               onClick={() => setIsPhaseModalOpen(true)}
@@ -549,6 +596,7 @@ const MarketingSprintPage: React.FC = () => {
           setSelectedTask(null);
         }}
         onSave={selectedTask ? handleUpdateTask : handleCreateTask}
+        onDelete={selectedTask ? handleDeleteTask : undefined}
         task={selectedTask}
         phases={phases}
       />
@@ -559,6 +607,7 @@ const MarketingSprintPage: React.FC = () => {
           setSelectedPhase(null);
         }}
         onSave={selectedPhase ? handleUpdatePhase : handleCreatePhase}
+        onDelete={selectedPhase ? handleDeletePhase : undefined}
         maxPhaseOrder={phases.length > 0 ? Math.max(...phases.map(p => p.phase_order)) : 0}
         phase={selectedPhase}
       />
