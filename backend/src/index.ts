@@ -135,7 +135,25 @@ app.use(helmet({
   },
 }));
 app.use(cors({
-  origin: corsOrigins,
+  origin: (origin, callback) => {
+    console.log('🔍 CORS Check - Incoming origin:', origin);
+    console.log('🔍 CORS Check - Allowed origins:', corsOrigins);
+
+    // Allow requests with no origin (like mobile apps, Postman, server-to-server)
+    if (!origin) {
+      console.log('✅ CORS Check - No origin (allowing)');
+      return callback(null, true);
+    }
+
+    // Check if origin is in the allowed list
+    if (corsOrigins.includes(origin)) {
+      console.log('✅ CORS Check - Origin allowed');
+      return callback(null, true);
+    }
+
+    console.log('❌ CORS Check - Origin rejected');
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
 }));
 app.use(compression());
