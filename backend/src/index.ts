@@ -100,6 +100,10 @@ const corsOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
   : ['http://localhost:5173', 'http://localhost:5174'];
 
+console.log('🔒 CORS Configuration:');
+console.log('  CORS_ORIGIN env var:', process.env.CORS_ORIGIN);
+console.log('  Allowed origins:', corsOrigins);
+
 // Socket.IO setup
 const io = new Server(httpServer, {
   cors: {
