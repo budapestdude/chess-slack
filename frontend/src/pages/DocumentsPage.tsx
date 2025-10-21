@@ -55,7 +55,8 @@ const DocumentsPage: React.FC = () => {
   useEffect(() => {
     if (workspaceId) {
       loadDocuments();
-      // loadDocumentTree(); // TODO: Backend doesn't have tree endpoint yet
+      // Note: Document tree view disabled until backend implements /documents/tree endpoint
+      // loadDocumentTree(); // Falls back to mock data, but generates unnecessary errors
     }
   }, [workspaceId, filterType, showFavorites]);
 

@@ -10,6 +10,43 @@ import logger from '../utils/logger';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../errors';
 import { validateFileType } from '../middleware/upload';
 
+// Type definitions for message responses
+interface MessageAttachment {
+  id: string;
+  filename: string;
+  fileType: string;
+  fileSize: number;
+  url: string;
+}
+
+interface MessageUser {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+}
+
+interface EnrichedMessage {
+  id: string;
+  workspaceId: string;
+  channelId: string;
+  userId: string;
+  content: string;
+  messageType: string;
+  metadata: Record<string, unknown>;
+  parentMessageId: string | null;
+  isEdited: boolean;
+  isDeleted: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  replyCount: number;
+  hasAttachments: boolean;
+  attachments: MessageAttachment[];
+  user: MessageUser;
+  reactions?: unknown[];
+  lastReplyAt?: Date | null;
+}
+
 // Helper to transform relative avatar URLs to full URLs for cross-origin compatibility
 const getFullAvatarUrl = (avatarUrl: string | null): string | null => {
   if (!avatarUrl) return null;
@@ -185,7 +222,7 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
       WHERE m.channel_id = $1 AND m.parent_message_id IS NULL AND m.is_deleted = false
     `;
 
-    const params: any[] = [channelId];
+    const params: (string | number)[] = [channelId];
 
     if (before) {
       query += ` AND m.created_at < (SELECT created_at FROM messages WHERE id = $2)`;
@@ -198,7 +235,7 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
     const result = await pool.query(query, params);
 
     // Transform results to include user object
-    const messages: any[] = result.rows.map((row) => ({
+    const messages: EnrichedMessage[] = result.rows.map((row) => ({
       id: row.id,
       workspaceId: row.workspace_id,
       channelId: row.channel_id,
@@ -213,7 +250,7 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
       updatedAt: row.updated_at,
       replyCount: parseInt(row.reply_count),
       hasAttachments: false,
-      attachments: [] as any[],
+      attachments: [] as MessageAttachment[],
       user: {
         id: row.user_id,
         username: row.username,
@@ -452,7 +489,7 @@ export const getThreadReplies = async (req: AuthRequest, res: Response) => {
   }
 
     const parentRow = parentResult.rows[0];
-    const parentMessage: any = {
+    const parentMessage: EnrichedMessage = {
       id: parentRow.id,
       workspaceId: parentRow.workspace_id,
       channelId: parentRow.channel_id,
@@ -468,7 +505,7 @@ export const getThreadReplies = async (req: AuthRequest, res: Response) => {
       createdAt: parentRow.created_at,
       updatedAt: parentRow.updated_at,
       hasAttachments: false,
-      attachments: [] as any[],
+      attachments: [] as MessageAttachment[],
       user: {
         id: parentRow.user_id,
         username: parentRow.username,
@@ -490,7 +527,7 @@ export const getThreadReplies = async (req: AuthRequest, res: Response) => {
       [messageId]
     );
 
-    const replies: any[] = repliesResult.rows.map((row) => ({
+    const replies: EnrichedMessage[] = repliesResult.rows.map((row) => ({
       id: row.id,
       workspaceId: row.workspace_id,
       channelId: row.channel_id,
@@ -506,7 +543,7 @@ export const getThreadReplies = async (req: AuthRequest, res: Response) => {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       hasAttachments: false,
-      attachments: [] as any[],
+      attachments: [] as MessageAttachment[],
       user: {
         id: row.user_id,
         username: row.username,
@@ -837,8 +874,8 @@ export const pinMessage = async (req: AuthRequest, res: Response) => {
     logger.info(`Message ${messageId} pinned by user ${userId}`);
 
     res.status(201).json(pinnedMessage);
-  } catch (error: any) {
-    if (error.code === '23505') {
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'code' in error && error.code === '23505') {
       // Unique constraint violation
       throw new BadRequestError('Message is already pinned');
     }
@@ -1027,8 +1064,8 @@ export const bookmarkMessage = async (req: AuthRequest, res: Response) => {
       note: result.rows[0].note,
       bookmarkedAt: result.rows[0].bookmarked_at,
     });
-  } catch (error: any) {
-    if (error.code === '23505') {
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'code' in error && error.code === '23505') {
       throw new BadRequestError('Message is already bookmarked');
     }
     throw error;

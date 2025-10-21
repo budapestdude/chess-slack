@@ -21,7 +21,7 @@ const xssOptions = {
 const skipSanitizationKeys = ['token', 'jwt', 'authorization'];
 
 // Recursively sanitize object properties
-const sanitizeObject = (obj: any, parentKey?: string): any => {
+const sanitizeObject = (obj: unknown, parentKey?: string): unknown => {
   if (typeof obj === 'string') {
     // Skip sanitization for sensitive keys like tokens
     if (parentKey && skipSanitizationKeys.includes(parentKey.toLowerCase())) {
@@ -34,11 +34,11 @@ const sanitizeObject = (obj: any, parentKey?: string): any => {
     return obj.map((item) => sanitizeObject(item, parentKey));
   }
 
-  if (obj && typeof obj === 'object') {
-    const sanitized: any = {};
+  if (obj && typeof obj === 'object' && obj !== null) {
+    const sanitized: Record<string, unknown> = {};
     for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
-        sanitized[key] = sanitizeObject(obj[key], key);
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        sanitized[key] = sanitizeObject((obj as Record<string, unknown>)[key], key);
       }
     }
     return sanitized;
