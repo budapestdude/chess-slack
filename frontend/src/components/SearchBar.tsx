@@ -71,11 +71,12 @@ export default function SearchBar({ workspaceId }: SearchBarProps) {
   }, [query]);
 
   const handleMessageClick = (channelId: string, messageId: string) => {
-    navigate(`/workspace/${workspaceId}/channel/${channelId}`);
+    navigate(`/workspace/${workspaceId}/channel/${channelId}`, {
+      state: { scrollToMessageId: messageId },
+    });
     setIsOpen(false);
     setQuery('');
     setResults(null);
-    // TODO: Scroll to message
   };
 
   const handleChannelClick = (channelId: string) => {
