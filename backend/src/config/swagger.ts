@@ -142,6 +142,130 @@ const options: swaggerJsdoc.Options = {
             },
           },
         },
+        Document: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'string',
+              format: 'uuid',
+            },
+            workspace_id: {
+              type: 'string',
+              format: 'uuid',
+            },
+            parent_id: {
+              type: 'string',
+              format: 'uuid',
+              nullable: true,
+            },
+            title: {
+              type: 'string',
+              maxLength: 500,
+            },
+            content: {
+              type: 'string',
+            },
+            content_type: {
+              type: 'string',
+              enum: ['markdown', 'html', 'rich_text'],
+            },
+            doc_type: {
+              type: 'string',
+              enum: ['document', 'wiki', 'note', 'folder'],
+            },
+            icon: {
+              type: 'string',
+              nullable: true,
+            },
+            cover_image_url: {
+              type: 'string',
+              nullable: true,
+            },
+            is_public: {
+              type: 'boolean',
+            },
+            is_archived: {
+              type: 'boolean',
+            },
+            is_template: {
+              type: 'boolean',
+            },
+            created_by: {
+              type: 'string',
+              format: 'uuid',
+            },
+            last_edited_by: {
+              type: 'string',
+              format: 'uuid',
+            },
+            created_at: {
+              type: 'string',
+              format: 'date-time',
+            },
+            updated_at: {
+              type: 'string',
+              format: 'date-time',
+            },
+          },
+        },
+        Comment: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'string',
+              format: 'uuid',
+            },
+            document_id: {
+              type: 'string',
+              format: 'uuid',
+            },
+            user_id: {
+              type: 'string',
+              format: 'uuid',
+            },
+            parent_comment_id: {
+              type: 'string',
+              format: 'uuid',
+              nullable: true,
+            },
+            content: {
+              type: 'string',
+            },
+            selection_start: {
+              type: 'integer',
+              nullable: true,
+            },
+            selection_end: {
+              type: 'integer',
+              nullable: true,
+            },
+            selection_text: {
+              type: 'string',
+              nullable: true,
+            },
+            is_resolved: {
+              type: 'boolean',
+            },
+            resolved_by: {
+              type: 'string',
+              format: 'uuid',
+              nullable: true,
+            },
+            resolved_at: {
+              type: 'string',
+              format: 'date-time',
+              nullable: true,
+            },
+            created_at: {
+              type: 'string',
+              format: 'date-time',
+            },
+            updated_at: {
+              type: 'string',
+              format: 'date-time',
+            },
+          },
+        },
       },
     },
     security: [
