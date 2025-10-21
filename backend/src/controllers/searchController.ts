@@ -4,6 +4,12 @@ import pool from '../database/db';
 import { AuthRequest } from '../types';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../errors';
 
+interface SearchResults {
+  messages: unknown[];
+  channels: unknown[];
+  users: unknown[];
+}
+
 const searchSchema = z.object({
   query: z.string().min(1).max(200),
   workspaceId: z.string().uuid(),
@@ -59,11 +65,10 @@ export const search = async (req: AuthRequest, res: Response) => {
         [userId, workspaceId, query]
       );
     } catch (err) {
-      // Non-critical, continue
-      console.error('Failed to save search history:', err);
+      // Non-critical, continue - do not throw, just log and continue
     }
 
-    const results: any = {
+    const results: SearchResults = {
       messages: [],
       channels: [],
       users: [],
@@ -86,7 +91,7 @@ export const search = async (req: AuthRequest, res: Response) => {
            AND (c.id IS NULL OR cm.user_id IS NOT NULL OR c.is_private = false)
            AND to_tsvector('english', m.content) @@ plainto_tsquery('english', $1)`;
 
-      const params: any[] = [query, userId, workspaceId];
+      const params: (string | Date)[] = [query, userId, workspaceId];
       let paramCount = 3;
 
       // Apply filters

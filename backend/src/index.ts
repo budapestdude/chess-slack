@@ -1,6 +1,4 @@
-console.log('🚀 Starting ChessSlack backend...');
-console.log('Node version:', process.version);
-console.log('Working directory:', process.cwd());
+// Logger will be imported below, so we'll log startup info after routes are loaded
 
 import express from 'express';
 import cors from 'cors';
@@ -11,88 +9,74 @@ import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 
-console.log('✅ Core modules imported');
-
 import logger, { stream } from './utils/logger';
+import swaggerUi from 'swagger-ui-express';
+import swaggerSpec from './config/swagger';
 
-console.log('✅ Logger imported');
+logger.info('🚀 Starting ChessSlack backend...', {
+  nodeVersion: process.version,
+  workingDirectory: process.cwd()
+});
+logger.debug('Core modules and logger imported');
 
-console.log('📦 Importing routes...');
-console.log('  - authRoutes...');
-let authRoutes: any;
+logger.debug('Importing routes...');
+import type { Router } from 'express';
+let authRoutes: Router;
 try {
   authRoutes = require('./routes/authRoutes').default;
-  console.log('  ✓ authRoutes loaded');
+  logger.debug('authRoutes loaded');
 } catch (error) {
-  console.error('  ✗ authRoutes FAILED:', error);
+  logger.error('Failed to load authRoutes', { error });
   throw error;
 }
-console.log('  - workspaceRoutes...');
 import workspaceRoutes from './routes/workspaceRoutes';
-console.log('  - channelRoutes...');
 import channelRoutes from './routes/channelRoutes';
-console.log('  - messageRoutes...');
 import messageRoutes from './routes/messageRoutes';
-console.log('  - dmRoutes...');
 import dmRoutes from './routes/dmRoutes';
-console.log('  - userRoutes...');
 import userRoutes from './routes/userRoutes';
-console.log('  - notificationRoutes...');
 import notificationRoutes from './routes/notificationRoutes';
-console.log('  - searchRoutes...');
 import searchRoutes from './routes/searchRoutes';
-console.log('  - invitationRoutes...');
 import invitationRoutes from './routes/invitationRoutes';
-console.log('  - draftRoutes...');
 import draftRoutes from './routes/draftRoutes';
-console.log('  - uploadRoutes...');
 import uploadRoutes from './routes/uploadRoutes';
-console.log('  - personalRoutes...');
 import personalRoutes from './routes/personalRoutes';
-console.log('  - documentRoutes...');
 import documentRoutes from './routes/documentRoutes';
-console.log('  - mindMapRoutes...');
 import mindMapRoutes from './routes/mindMapRoutes';
-console.log('  - crmRoutes...');
 import crmRoutes from './routes/crmRoutes';
-console.log('  - marketingRoutes...');
 import marketingRoutes from './routes/marketingRoutes';
-console.log('  - sprintRoutes...');
 import sprintRoutes from './routes/sprintRoutes';
-console.log('  - meetingNotesRoutes...');
 import meetingNotesRoutes from './routes/meetingNotesRoutes';
-console.log('✅ All routes imported');
+logger.debug('All routes imported successfully');
 
 // import agentRoutes from './routes/agentRoutes';
 // import taskRoutes from './routes/taskRoutes';
 // import artifactRoutes from './routes/artifactRoutes';
 
-console.log('📦 Importing utilities and middleware...');
+logger.debug('Importing utilities and middleware...');
 import { verifyToken } from './utils/jwt';
 import pool from './database/db';
 import { apiLimiter } from './middleware/rateLimiter';
 import { sanitizeInput } from './middleware/sanitize';
 import { errorHandler } from './middleware/errorHandler';
 import { asyncHandler } from './utils/asyncHandler';
-console.log('✅ Utilities imported');
+logger.debug('Utilities and middleware imported');
 // import { setupAgentSocketHandlers, setupAgentClientHandlers } from './sockets/agentSocket';
 
-console.log('⚙️ Configuring environment...');
+logger.debug('Configuring environment...');
 dotenv.config();
 
-console.log('🏗️ Creating Express app and HTTP server...');
+logger.debug('Creating Express app and HTTP server...');
 const app = express();
 const httpServer = createServer(app);
-console.log('✅ App and server created');
+logger.debug('Express app and HTTP server created');
 
 // Ensure uploads directory exists
-console.log('📁 Ensuring uploads directory exists...');
 import fs from 'fs';
 if (!fs.existsSync('uploads')) {
   fs.mkdirSync('uploads', { recursive: true });
-  console.log('✅ Created uploads directory');
+  logger.info('Created uploads directory');
 } else {
-  console.log('✅ Uploads directory already exists');
+  logger.debug('Uploads directory already exists');
 }
 
 // Parse CORS origins from environment variable (comma-separated) or use defaults
@@ -100,9 +84,10 @@ const corsOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
   : ['http://localhost:5173', 'http://localhost:5174'];
 
-console.log('🔒 CORS Configuration:');
-console.log('  CORS_ORIGIN env var:', process.env.CORS_ORIGIN);
-console.log('  Allowed origins:', corsOrigins);
+logger.info('CORS Configuration', {
+  corsOriginEnv: process.env.CORS_ORIGIN,
+  allowedOrigins: corsOrigins
+});
 
 // Socket.IO setup
 const io = new Server(httpServer, {
@@ -136,22 +121,21 @@ app.use(helmet({
 }));
 app.use(cors({
   origin: (origin, callback) => {
-    console.log('🔍 CORS Check - Incoming origin:', origin);
-    console.log('🔍 CORS Check - Allowed origins:', corsOrigins);
+    logger.debug('CORS check', { incomingOrigin: origin, allowedOrigins: corsOrigins });
 
     // Allow requests with no origin (like mobile apps, Postman, server-to-server)
     if (!origin) {
-      console.log('✅ CORS Check - No origin (allowing)');
+      logger.debug('CORS check: No origin header, allowing request');
       return callback(null, true);
     }
 
     // Check if origin is in the allowed list
     if (corsOrigins.includes(origin)) {
-      console.log('✅ CORS Check - Origin allowed');
+      logger.debug('CORS check: Origin allowed', { origin });
       return callback(null, true);
     }
 
-    console.log('❌ CORS Check - Origin rejected');
+    logger.warn('CORS check: Origin rejected', { origin });
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
@@ -193,6 +177,13 @@ app.use('/api/sprints', sprintRoutes);
 app.use('/api/workspaces', meetingNotesRoutes);
 app.use('/api/dms', dmRoutes);
 app.use('/api/users', userRoutes);
+
+// API Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'ChessSlack API Docs',
+}));
+logger.info('Swagger UI available at /api-docs');
 
 // Helper to transform relative avatar URLs to full URLs for cross-origin compatibility
 const getFullAvatarUrl = (avatarUrl: string | null): string | null => {
@@ -519,7 +510,7 @@ httpServer.listen(PORT, '0.0.0.0', () => {
   global.serverStarted = true;
   logger.info(`Server running on port ${PORT}`);
   logger.info('WebSocket server ready');
-  console.log(`✅ Server successfully started on port ${PORT}`);
+  logger.info('🚀 ChessSlack backend successfully started');
 });
 
 export { io };
