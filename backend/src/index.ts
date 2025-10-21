@@ -431,6 +431,129 @@ io.on('connection', async (socket) => {
     });
   });
 
+  // Document collaboration handlers
+  socket.on('join-document', async ({ documentId, workspaceId }) => {
+    // Validate input
+    if (!documentId || !workspaceId ||
+        typeof documentId !== 'string' || typeof workspaceId !== 'string' ||
+        !/^[0-9a-f-]{36}$/i.test(documentId) || !/^[0-9a-f-]{36}$/i.test(workspaceId)) {
+      logger.warn('Invalid document/workspace ID in join-document', { socketId: socket.id, documentId, workspaceId });
+      return;
+    }
+
+    try {
+      // Verify user has access to document
+      const accessCheck = await pool.query(
+        `SELECT d.id FROM documents d
+         LEFT JOIN document_collaborators dc ON d.id = dc.document_id AND dc.user_id = $2
+         WHERE d.id = $1 AND d.workspace_id = $3
+         AND (d.is_public = true OR d.created_by = $2 OR dc.user_id IS NOT NULL)`,
+        [documentId, userId, workspaceId]
+      );
+
+      if (accessCheck.rows.length === 0) {
+        logger.warn('Unauthorized document join attempt', { socketId: socket.id, userId, documentId });
+        return;
+      }
+
+      socket.join(`document:${documentId}`);
+      logger.debug('Socket joined document', { socketId: socket.id, documentId });
+
+      // Get user info and broadcast join
+      const userResult = await pool.query(
+        'SELECT id, username, display_name, avatar_url FROM users WHERE id = $1',
+        [userId]
+      );
+
+      const user = userResult.rows[0];
+
+      socket.to(`document:${documentId}`).emit('collaborator-joined', {
+        userId: user.id,
+        username: user.username,
+        displayName: user.display_name,
+        avatarUrl: getFullAvatarUrl(user.avatar_url),
+        lastActivity: new Date(),
+      });
+
+      // Send current collaborators to new joiner
+      const collaborators = await pool.query(
+        `SELECT DISTINCT u.id, u.username, u.display_name, u.avatar_url
+         FROM users u
+         WHERE u.id IN (
+           SELECT user_id FROM document_collaborators WHERE document_id = $1
+           UNION
+           SELECT created_by FROM documents WHERE id = $1
+         )`,
+        [documentId]
+      );
+
+      socket.emit('document-presence', collaborators.rows.map(row => ({
+        userId: row.id,
+        username: row.username,
+        displayName: row.display_name,
+        avatarUrl: getFullAvatarUrl(row.avatar_url),
+        lastActivity: new Date(),
+      })));
+    } catch (error) {
+      logger.error('Error in join-document', { error, socketId: socket.id });
+    }
+  });
+
+  socket.on('leave-document', ({ documentId }) => {
+    // Validate input
+    if (!documentId || typeof documentId !== 'string' || !/^[0-9a-f-]{36}$/i.test(documentId)) {
+      logger.warn('Invalid document ID in leave-document', { socketId: socket.id, documentId });
+      return;
+    }
+
+    socket.leave(`document:${documentId}`);
+    logger.debug('Socket left document', { socketId: socket.id, documentId });
+
+    // Notify others
+    socket.to(`document:${documentId}`).emit('collaborator-left', userId);
+  });
+
+  socket.on('document-update', ({ documentId, content, timestamp }) => {
+    // Validate input
+    if (!documentId || typeof documentId !== 'string' || !/^[0-9a-f-]{36}$/i.test(documentId)) {
+      return;
+    }
+
+    // Broadcast update to other users in document
+    socket.to(`document:${documentId}`).emit('document-update', {
+      documentId,
+      content,
+      updatedBy: userId,
+      timestamp: timestamp || new Date(),
+    });
+  });
+
+  socket.on('cursor-update', ({ documentId, position }) => {
+    // Validate input
+    if (!documentId || typeof documentId !== 'string' || !/^[0-9a-f-]{36}$/i.test(documentId)) {
+      return;
+    }
+
+    // Broadcast cursor position to other users
+    socket.to(`document:${documentId}`).emit('cursor-update', {
+      userId,
+      position,
+    });
+  });
+
+  socket.on('document-presence', ({ documentId }) => {
+    // Validate input
+    if (!documentId || typeof documentId !== 'string' || !/^[0-9a-f-]{36}$/i.test(documentId)) {
+      return;
+    }
+
+    // Broadcast presence heartbeat
+    socket.to(`document:${documentId}`).emit('presence-heartbeat', {
+      userId,
+      timestamp: new Date(),
+    });
+  });
+
   socket.on('set-presence', async ({ status }) => {
     const validStatuses = ['online', 'away', 'busy', 'offline'];
     if (!validStatuses.includes(status)) {
