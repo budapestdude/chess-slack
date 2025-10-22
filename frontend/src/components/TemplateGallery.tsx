@@ -247,15 +247,18 @@ export default function TemplateGallery({ workspaceId, onSelectTemplate, onClose
     try {
       setIsLoading(true);
       // Load custom templates from workspace
-      const docs = await getDocuments(workspaceId, { isTemplate: true });
-      const customTemplates: Template[] = docs.map((doc: any) => ({
-        id: doc.id,
-        title: doc.title,
-        description: doc.description || 'Custom template',
-        content: doc.content,
-        icon: doc.icon || '📄',
-        category: 'Custom',
-      }));
+      const docs = await getDocuments(workspaceId);
+      // Filter for templates on the client side
+      const customTemplates: Template[] = docs
+        .filter((doc: any) => doc.isTemplate)
+        .map((doc: any) => ({
+          id: doc.id,
+          title: doc.title,
+          description: doc.description || 'Custom template',
+          content: doc.content,
+          icon: doc.icon || '📄',
+          category: 'Custom',
+        }));
       setTemplates([...defaultTemplates, ...customTemplates]);
     } catch (error) {
       console.error('Error loading templates:', error);
