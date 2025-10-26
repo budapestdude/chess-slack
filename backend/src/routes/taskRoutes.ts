@@ -30,4 +30,12 @@ router.post('/:workspaceId/tasks/:taskId/comments', authenticateToken, taskContr
 router.put('/:workspaceId/tasks/:taskId/comments/:commentId', authenticateToken, taskController.updateTaskComment);
 router.delete('/:workspaceId/tasks/:taskId/comments/:commentId', authenticateToken, taskController.deleteTaskComment);
 
+// Project-specific task routes
+router.get('/projects/:projectId/tasks', authenticateToken, taskController.getTasksByProject);
+router.get('/sections/:sectionId/tasks', authenticateToken, taskController.getTasksBySection);
+router.post('/tasks/:taskId/move', authenticateToken, taskController.moveTaskToSection);
+router.post('/sections/:sectionId/tasks/reorder', authenticateToken, taskController.reorderTasks);
+router.post('/tasks/:taskId/complete', authenticateToken, taskController.completeTask);
+router.post('/tasks/:taskId/uncomplete', authenticateToken, taskController.uncompleteTask);
+
 export default router;

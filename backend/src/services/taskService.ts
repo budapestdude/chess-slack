@@ -28,7 +28,9 @@ class TaskService {
    */
   async createTask(
     data: CreateTaskRequest,
-    createdByAgentId?: string
+    createdByAgentId?: string,
+    projectId?: string,
+    sectionId?: string
   ): Promise<AgentTask> {
     const client = await pool.connect();
     try {
@@ -38,8 +40,8 @@ class TaskService {
         `INSERT INTO agent_tasks (
           workspace_id, created_by_agent_id, assigned_to_agent_id, assigned_to_user_id, parent_task_id,
           title, description, task_type, priority, context, requirements,
-          estimated_effort, due_date
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+          estimated_effort, due_date, project_id, section_id, start_date, position
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
         RETURNING *`,
         [
           data.workspaceId,
@@ -55,13 +57,17 @@ class TaskService {
           JSON.stringify(data.requirements || []),
           data.estimatedEffort || null,
           data.dueDate || null,
+          projectId || null,
+          sectionId || null,
+          data.startDate || null,
+          data.position || 0,
         ]
       );
 
       await client.query('COMMIT');
 
       const task = this.mapRowToTask(result.rows[0]);
-      logger.info('Task created', { taskId: task.id, title: task.title });
+      logger.info('Task created', { taskId: task.id, title: task.title, projectId, sectionId });
 
       return task;
     } catch (error) {
@@ -1196,6 +1202,126 @@ class TaskService {
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
     };
+  }
+
+  // ============================================
+  // PROJECT AND SECTION OPERATIONS
+  // ============================================
+
+  /**
+   * Get all tasks for a project
+   */
+  async getTasksByProject(projectId: string): Promise<AgentTask[]> {
+    try {
+      const result = await pool.query(
+        `SELECT t.*,
+                u.username as assigned_user_name,
+                u.email as assigned_user_email
+         FROM agent_tasks t
+         LEFT JOIN users u ON t.assigned_to_user_id = u.id
+         WHERE t.project_id = $1
+         ORDER BY t.position ASC, t.created_at DESC`,
+        [projectId]
+      );
+
+      return result.rows.map(row => this.mapRowToTask(row));
+    } catch (error) {
+      logger.error('Error getting tasks by project', { error, projectId });
+      throw new Error(`Failed to get tasks by project: ${error}`);
+    }
+  }
+
+  /**
+   * Get all tasks for a section
+   */
+  async getTasksBySection(sectionId: string): Promise<AgentTask[]> {
+    try {
+      const result = await pool.query(
+        `SELECT t.*,
+                u.username as assigned_user_name,
+                u.email as assigned_user_email
+         FROM agent_tasks t
+         LEFT JOIN users u ON t.assigned_to_user_id = u.id
+         WHERE t.section_id = $1
+         ORDER BY t.position ASC, t.created_at DESC`,
+        [sectionId]
+      );
+
+      return result.rows.map(row => this.mapRowToTask(row));
+    } catch (error) {
+      logger.error('Error getting tasks by section', { error, sectionId });
+      throw new Error(`Failed to get tasks by section: ${error}`);
+    }
+  }
+
+  /**
+   * Move task to different section
+   */
+  async moveTaskToSection(taskId: string, sectionId: string, position?: number): Promise<AgentTask> {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // If no position provided, add to end of section
+      if (position === undefined) {
+        const maxPosResult = await client.query(
+          `SELECT COALESCE(MAX(position), -1) + 1 as next_position FROM agent_tasks WHERE section_id = $1`,
+          [sectionId]
+        );
+        position = maxPosResult.rows[0].next_position;
+      }
+
+      const result = await client.query(
+        `UPDATE agent_tasks
+         SET section_id = $1, position = $2, updated_at = NOW()
+         WHERE id = $3
+         RETURNING *`,
+        [sectionId, position, taskId]
+      );
+
+      if (result.rows.length === 0) {
+        throw new Error('Task not found');
+      }
+
+      await client.query('COMMIT');
+
+      const task = this.mapRowToTask(result.rows[0]);
+      logger.info('Task moved to section', { taskId, sectionId, position });
+
+      return task;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      logger.error('Error moving task to section', { error, taskId, sectionId });
+      throw new Error(`Failed to move task to section: ${error}`);
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Reorder tasks within a section
+   */
+  async reorderTasks(sectionId: string, taskIds: string[]): Promise<void> {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      for (let i = 0; i < taskIds.length; i++) {
+        await client.query(
+          `UPDATE agent_tasks SET position = $1 WHERE id = $2 AND section_id = $3`,
+          [i, taskIds[i], sectionId]
+        );
+      }
+
+      await client.query('COMMIT');
+      logger.info('Tasks reordered', { sectionId, count: taskIds.length });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      logger.error('Error reordering tasks', { error, sectionId });
+      throw new Error(`Failed to reorder tasks: ${error}`);
+    } finally {
+      client.release();
+    }
   }
 }
 

@@ -21,6 +21,11 @@ const BusinessPage = lazy(() => import('./pages/BusinessPage'));
 const MarketingPage = lazy(() => import('./pages/MarketingPage'));
 const SprintOverviewPage = lazy(() => import('./pages/SprintOverviewPage'));
 const MarketingSprintPage = lazy(() => import('./pages/MarketingSprintPage'));
+const ProjectsPage = lazy(() => import('./pages/ProjectsPage'));
+const ProjectDetailPage = lazy(() => import('./pages/ProjectDetailPage'));
+const LeadsPage = lazy(() => import('./pages/LeadsPage'));
+const OpportunitiesPage = lazy(() => import('./pages/OpportunitiesPage'));
+const CRMDashboardPage = lazy(() => import('./pages/CRMDashboardPage'));
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token } = useSelector((state: RootState) => state.auth);
@@ -186,6 +191,46 @@ export default function App() {
           element={
             <PrivateRoute>
               <MarketingSprintPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/workspace/:workspaceId/projects"
+          element={
+            <PrivateRoute>
+              <ProjectsPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/workspace/:workspaceId/projects/:projectId"
+          element={
+            <PrivateRoute>
+              <ProjectDetailPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/workspace/:workspaceId/crm"
+          element={
+            <PrivateRoute>
+              <CRMDashboardPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/workspace/:workspaceId/leads"
+          element={
+            <PrivateRoute>
+              <LeadsPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/workspace/:workspaceId/opportunities"
+          element={
+            <PrivateRoute>
+              <OpportunitiesPage />
             </PrivateRoute>
           }
         />

@@ -573,3 +573,113 @@ export const deleteTaskComment = asyncHandler(async (req: AuthRequest, res: Resp
 
   res.json({ message: 'Comment deleted successfully' });
 });
+
+// ============================================
+// PROJECT-SPECIFIC TASK OPERATIONS
+// ============================================
+
+/**
+ * Get all tasks for a project
+ */
+export const getTasksByProject = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { projectId } = req.params;
+
+  const tasks = await taskService.getTasksByProject(projectId);
+
+  logger.info('Tasks retrieved by project via API', {
+    projectId,
+    count: tasks.length,
+  });
+
+  res.json(tasks);
+});
+
+/**
+ * Get all tasks for a section
+ */
+export const getTasksBySection = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { sectionId } = req.params;
+
+  const tasks = await taskService.getTasksBySection(sectionId);
+
+  logger.info('Tasks retrieved by section via API', {
+    sectionId,
+    count: tasks.length,
+  });
+
+  res.json(tasks);
+});
+
+/**
+ * Move task to a different section
+ */
+export const moveTaskToSection = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { taskId } = req.params;
+  const { section_id, position } = req.body;
+
+  if (!section_id) {
+    throw new BadRequestError('section_id is required');
+  }
+
+  const task = await taskService.moveTaskToSection(taskId, section_id, position);
+
+  logger.info('Task moved to section via API', {
+    taskId,
+    sectionId: section_id,
+    position,
+  });
+
+  res.json(task);
+});
+
+/**
+ * Reorder tasks within a section
+ */
+export const reorderTasks = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { sectionId } = req.params;
+  const { task_ids } = req.body;
+
+  if (!Array.isArray(task_ids)) {
+    throw new BadRequestError('task_ids must be an array');
+  }
+
+  await taskService.reorderTasks(sectionId, task_ids);
+
+  logger.info('Tasks reordered via API', {
+    sectionId,
+    count: task_ids.length,
+  });
+
+  res.json({ message: 'Tasks reordered successfully' });
+});
+
+/**
+ * Mark task as complete
+ */
+export const completeTask = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { taskId } = req.params;
+
+  const task = await taskService.updateTask(taskId, {
+    status: 'completed',
+    completedAt: new Date(),
+  });
+
+  logger.info('Task completed via API', { taskId });
+
+  res.json(task);
+});
+
+/**
+ * Mark task as not complete
+ */
+export const uncompleteTask = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { taskId } = req.params;
+
+  const task = await taskService.updateTask(taskId, {
+    status: 'pending',
+  });
+
+  logger.info('Task uncompleted via API', { taskId });
+
+  res.json(task);
+});
