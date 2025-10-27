@@ -257,6 +257,10 @@ export interface CreateTaskRequest {
   requirements?: string[];
   estimatedEffort?: number;
   dueDate?: Date;
+  startDate?: Date;
+  position?: number;
+  project_id?: string;
+  section_id?: string;
 }
 
 export interface UpdateTaskRequest {
@@ -272,6 +276,9 @@ export interface UpdateTaskRequest {
   results?: TaskResults;
   errorLog?: string;
   dueDate?: Date;
+  completedAt?: Date;
+  startDate?: Date;
+  position?: number;
 }
 
 export interface CreateArtifactRequest {

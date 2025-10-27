@@ -1,9 +1,10 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
+import { AuthRequest } from '../types';
 import projectService from '../services/projectService';
 
 class ProjectController {
   // Create a new project
-  async createProject(req: Request, res: Response) {
+  async createProject(req: AuthRequest, res: Response) {
     try {
       const { workspace_id, name, description, color, icon, default_view } = req.body;
       const userId = req.user?.id;
@@ -17,7 +18,7 @@ class ProjectController {
       }
 
       const project = await projectService.createProject(
-        { workspace_id, name, description, color, icon, default_view },
+        { workspace_id, name, description, color, icon, default_view, owner_id: userId } as any,
         userId
       );
 
@@ -29,7 +30,7 @@ class ProjectController {
   }
 
   // Get all projects in a workspace
-  async getProjectsByWorkspace(req: Request, res: Response) {
+  async getProjectsByWorkspace(req: AuthRequest, res: Response) {
     try {
       const { workspaceId } = req.params;
       const userId = req.user?.id;
@@ -47,7 +48,7 @@ class ProjectController {
   }
 
   // Get a single project with details
-  async getProjectById(req: Request, res: Response) {
+  async getProjectById(req: AuthRequest, res: Response) {
     try {
       const { projectId } = req.params;
       const userId = req.user?.id;
@@ -68,7 +69,7 @@ class ProjectController {
   }
 
   // Update a project
-  async updateProject(req: Request, res: Response) {
+  async updateProject(req: AuthRequest, res: Response) {
     try {
       const { projectId } = req.params;
       const userId = req.user?.id;
@@ -95,7 +96,7 @@ class ProjectController {
   }
 
   // Archive a project
-  async archiveProject(req: Request, res: Response) {
+  async archiveProject(req: AuthRequest, res: Response) {
     try {
       const { projectId } = req.params;
       const userId = req.user?.id;
@@ -119,7 +120,7 @@ class ProjectController {
   }
 
   // Delete a project
-  async deleteProject(req: Request, res: Response) {
+  async deleteProject(req: AuthRequest, res: Response) {
     try {
       const { projectId } = req.params;
       const userId = req.user?.id;
@@ -143,7 +144,7 @@ class ProjectController {
   }
 
   // Add member to project
-  async addMember(req: Request, res: Response) {
+  async addMember(req: AuthRequest, res: Response) {
     try {
       const { projectId } = req.params;
       const { user_id, role } = req.body;
@@ -172,7 +173,7 @@ class ProjectController {
   }
 
   // Remove member from project
-  async removeMember(req: Request, res: Response) {
+  async removeMember(req: AuthRequest, res: Response) {
     try {
       const { projectId, userId: memberUserId } = req.params;
       const userId = req.user?.id;
@@ -196,7 +197,7 @@ class ProjectController {
   }
 
   // Update member role
-  async updateMemberRole(req: Request, res: Response) {
+  async updateMemberRole(req: AuthRequest, res: Response) {
     try {
       const { projectId, userId: memberUserId } = req.params;
       const { role } = req.body;
@@ -225,7 +226,7 @@ class ProjectController {
   }
 
   // Create section
-  async createSection(req: Request, res: Response) {
+  async createSection(req: AuthRequest, res: Response) {
     try {
       const { projectId } = req.params;
       const { name, position } = req.body;
@@ -254,7 +255,7 @@ class ProjectController {
   }
 
   // Update section
-  async updateSection(req: Request, res: Response) {
+  async updateSection(req: AuthRequest, res: Response) {
     try {
       const { sectionId } = req.params;
       const { name, position } = req.body;
@@ -273,7 +274,7 @@ class ProjectController {
   }
 
   // Delete section
-  async deleteSection(req: Request, res: Response) {
+  async deleteSection(req: AuthRequest, res: Response) {
     try {
       const { sectionId } = req.params;
       const userId = req.user?.id;
@@ -291,7 +292,7 @@ class ProjectController {
   }
 
   // Reorder sections
-  async reorderSections(req: Request, res: Response) {
+  async reorderSections(req: AuthRequest, res: Response) {
     try {
       const { projectId } = req.params;
       const { section_ids } = req.body;

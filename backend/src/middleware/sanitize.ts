@@ -54,11 +54,11 @@ export const sanitizeInput = (req: Request, _res: Response, next: NextFunction) 
   }
 
   if (req.query) {
-    req.query = sanitizeObject(req.query);
+    req.query = sanitizeObject(req.query) as any;
   }
 
   if (req.params) {
-    req.params = sanitizeObject(req.params);
+    req.params = sanitizeObject(req.params) as any;
   }
 
   next();

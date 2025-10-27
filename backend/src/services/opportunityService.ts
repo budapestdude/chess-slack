@@ -1,4 +1,4 @@
-import pool from '../config/database';
+import pool from '../database/db';
 import logger from '../utils/logger';
 
 export interface Opportunity {

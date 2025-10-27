@@ -91,7 +91,7 @@ export const search = async (req: AuthRequest, res: Response) => {
            AND (c.id IS NULL OR cm.user_id IS NOT NULL OR c.is_private = false)
            AND to_tsvector('english', m.content) @@ plainto_tsquery('english', $1)`;
 
-      const params: (string | Date)[] = [query, userId, workspaceId];
+      const params: (string | Date | number)[] = [query, userId, workspaceId];
       let paramCount = 3;
 
       // Apply filters
