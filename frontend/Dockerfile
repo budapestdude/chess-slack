@@ -26,11 +26,14 @@ RUN npm install -g serve
 # Copy built assets from builder stage
 COPY --from=builder /app/dist ./dist
 
+# Verify dist folder has content
+RUN ls -la dist && echo "Dist folder contents verified"
+
 # Expose port (Railway will provide PORT env var)
 EXPOSE 3000
 
 # Set default PORT if not provided
 ENV PORT=3000
 
-# Start serve
-CMD ["serve", "-s", "dist", "-l", "3000"]
+# Start serve with verbose output
+CMD ["sh", "-c", "echo 'Starting serve on port' $PORT && serve -s dist -l $PORT"]
