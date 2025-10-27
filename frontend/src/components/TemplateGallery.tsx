@@ -246,8 +246,8 @@ export default function TemplateGallery({ workspaceId, onSelectTemplate, onClose
   const loadCustomTemplates = async () => {
     try {
       setIsLoading(true);
-      // Load custom templates from workspace
-      const docs = await getDocuments(workspaceId, { isTemplate: true });
+      // Load custom templates from workspace (filtering done on backend)
+      const docs = await getDocuments(workspaceId);
       const customTemplates: Template[] = docs.map((doc: any) => ({
         id: doc.id,
         title: doc.title,

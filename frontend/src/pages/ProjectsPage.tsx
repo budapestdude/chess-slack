@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import projectService, { Project } from '../services/projectService';
-import { useWorkspace } from '../contexts/WorkspaceContext';
 import CreateProjectModal from '../components/projects/CreateProjectModal';
 import ProjectCard from '../components/projects/ProjectCard';
 import toast from 'react-hot-toast';
 
 const ProjectsPage: React.FC = () => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
-  const { currentWorkspace } = useWorkspace();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -77,7 +75,7 @@ const ProjectsPage: React.FC = () => {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Projects</h1>
             <p className="text-sm text-gray-600 mt-1">
-              {projects.length} {projects.length === 1 ? 'project' : 'projects'} in {currentWorkspace?.name}
+              {projects.length} {projects.length === 1 ? 'project' : 'projects'}
             </p>
           </div>
           <div className="flex items-center space-x-3">
