@@ -71,53 +71,53 @@ class ProjectService {
   }
 
   async getProjectById(projectId: string): Promise<Project> {
-    const response = await api.get(`/api/projects/${projectId}`);
+    const response = await api.get(`/projects/${projectId}`);
     return response.data;
   }
 
   async updateProject(projectId: string, data: UpdateProjectData): Promise<Project> {
-    const response = await api.put(`/api/projects/${projectId}`, data);
+    const response = await api.put(`/projects/${projectId}`, data);
     return response.data;
   }
 
   async archiveProject(projectId: string): Promise<void> {
-    await api.post(`/api/projects/${projectId}/archive`);
+    await api.post(`/projects/${projectId}/archive`);
   }
 
   async deleteProject(projectId: string): Promise<void> {
-    await api.delete(`/api/projects/${projectId}`);
+    await api.delete(`/projects/${projectId}`);
   }
 
   async addMember(projectId: string, userId: string, role: 'owner' | 'editor' | 'viewer'): Promise<ProjectMember> {
-    const response = await api.post(`/api/projects/${projectId}/members`, { user_id: userId, role });
+    const response = await api.post(`/projects/${projectId}/members`, { user_id: userId, role });
     return response.data;
   }
 
   async removeMember(projectId: string, userId: string): Promise<void> {
-    await api.delete(`/api/projects/${projectId}/members/${userId}`);
+    await api.delete(`/projects/${projectId}/members/${userId}`);
   }
 
   async updateMemberRole(projectId: string, userId: string, role: 'owner' | 'editor' | 'viewer'): Promise<ProjectMember> {
-    const response = await api.put(`/api/projects/${projectId}/members/${userId}/role`, { role });
+    const response = await api.put(`/projects/${projectId}/members/${userId}/role`, { role });
     return response.data;
   }
 
   async createSection(projectId: string, name: string, position?: number): Promise<ProjectSection> {
-    const response = await api.post(`/api/projects/${projectId}/sections`, { name, position });
+    const response = await api.post(`/projects/${projectId}/sections`, { name, position });
     return response.data;
   }
 
   async updateSection(sectionId: string, name?: string, position?: number): Promise<ProjectSection> {
-    const response = await api.put(`/api/sections/${sectionId}`, { name, position });
+    const response = await api.put(`/sections/${sectionId}`, { name, position });
     return response.data;
   }
 
   async deleteSection(sectionId: string): Promise<void> {
-    await api.delete(`/api/sections/${sectionId}`);
+    await api.delete(`/sections/${sectionId}`);
   }
 
   async reorderSections(projectId: string, sectionIds: string[]): Promise<void> {
-    await api.post(`/api/projects/${projectId}/sections/reorder`, { section_ids: sectionIds });
+    await api.post(`/projects/${projectId}/sections/reorder`, { section_ids: sectionIds });
   }
 }
 
