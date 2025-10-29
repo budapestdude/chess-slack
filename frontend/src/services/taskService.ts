@@ -53,50 +53,50 @@ export interface UpdateTaskData {
 
 class TaskService {
   async createTask(workspaceId: string, data: CreateTaskData): Promise<Task> {
-    const response = await api.post(`/api/workspaces/${workspaceId}/tasks`, data);
+    const response = await api.post(`/workspaces/${workspaceId}/tasks`, data);
     return response.data;
   }
 
   async getTasksByProject(projectId: string): Promise<Task[]> {
-    const response = await api.get(`/api/projects/${projectId}/tasks`);
+    const response = await api.get(`/projects/${projectId}/tasks`);
     return response.data;
   }
 
   async getTasksBySection(sectionId: string): Promise<Task[]> {
-    const response = await api.get(`/api/sections/${sectionId}/tasks`);
+    const response = await api.get(`/sections/${sectionId}/tasks`);
     return response.data;
   }
 
   async getTask(taskId: string): Promise<Task> {
-    const response = await api.get(`/api/tasks/${taskId}`);
+    const response = await api.get(`/tasks/${taskId}`);
     return response.data;
   }
 
   async updateTask(taskId: string, data: UpdateTaskData): Promise<Task> {
-    const response = await api.put(`/api/tasks/${taskId}`, data);
+    const response = await api.put(`/tasks/${taskId}`, data);
     return response.data;
   }
 
   async deleteTask(taskId: string): Promise<void> {
-    await api.delete(`/api/tasks/${taskId}`);
+    await api.delete(`/tasks/${taskId}`);
   }
 
   async moveTaskToSection(taskId: string, sectionId: string, position?: number): Promise<Task> {
-    const response = await api.post(`/api/tasks/${taskId}/move`, { section_id: sectionId, position });
+    const response = await api.post(`/tasks/${taskId}/move`, { section_id: sectionId, position });
     return response.data;
   }
 
   async reorderTasks(sectionId: string, taskIds: string[]): Promise<void> {
-    await api.post(`/api/sections/${sectionId}/tasks/reorder`, { task_ids: taskIds });
+    await api.post(`/sections/${sectionId}/tasks/reorder`, { task_ids: taskIds });
   }
 
   async completeTask(taskId: string): Promise<Task> {
-    const response = await api.post(`/api/tasks/${taskId}/complete`);
+    const response = await api.post(`/tasks/${taskId}/complete`);
     return response.data;
   }
 
   async uncompleteTask(taskId: string): Promise<Task> {
-    const response = await api.post(`/api/tasks/${taskId}/uncomplete`);
+    const response = await api.post(`/tasks/${taskId}/uncomplete`);
     return response.data;
   }
 }
