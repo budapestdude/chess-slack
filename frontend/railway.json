@@ -4,6 +4,7 @@
     "builder": "DOCKERFILE"
   },
   "deploy": {
+    "startCommand": "/bin/sh -c 'serve -s dist -l $PORT'",
     "healthcheckPath": "/",
     "healthcheckTimeout": 100,
     "restartPolicyType": "ON_FAILURE",
