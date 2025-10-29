@@ -12,6 +12,7 @@ import { Server } from 'socket.io';
 import logger, { stream } from './utils/logger';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './config/swagger';
+import runMigrations from './database/migrationRunner';
 
 logger.info('🚀 Starting ChessSlack backend...', {
   nodeVersion: process.version,
@@ -640,11 +641,19 @@ app.use(errorHandler);
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
 
-httpServer.listen(PORT, '0.0.0.0', () => {
-  global.serverStarted = true;
-  logger.info(`Server running on port ${PORT}`);
-  logger.info('WebSocket server ready');
-  logger.info('🚀 ChessSlack backend successfully started');
-});
+// Run migrations before starting server
+runMigrations()
+  .then(() => {
+    httpServer.listen(PORT, '0.0.0.0', () => {
+      global.serverStarted = true;
+      logger.info(`Server running on port ${PORT}`);
+      logger.info('WebSocket server ready');
+      logger.info('🚀 ChessSlack backend successfully started');
+    });
+  })
+  .catch((error) => {
+    logger.error('Failed to run migrations, server not started:', error);
+    process.exit(1);
+  });
 
 export { io };
