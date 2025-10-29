@@ -61,12 +61,12 @@ export interface UpdateProjectData {
 
 class ProjectService {
   async createProject(data: CreateProjectData): Promise<Project> {
-    const response = await api.post('/api/projects', data);
+    const response = await api.post('/projects', data);
     return response.data;
   }
 
   async getProjectsByWorkspace(workspaceId: string): Promise<Project[]> {
-    const response = await api.get(`/api/workspaces/${workspaceId}/projects`);
+    const response = await api.get(`/workspaces/${workspaceId}/projects`);
     return response.data;
   }
 
