@@ -560,6 +560,24 @@ export default function Sidebar({
           </div>
         </div>
 
+        {/* Project Management section */}
+        <div className="p-4 border-t border-gray-700">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold text-gray-300">Project Management</h3>
+          </div>
+          <div className="space-y-1">
+            <button
+              onClick={() => navigate(`/workspace/${workspaceId}/projects`)}
+              className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
+            >
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              <span className="truncate text-sm">Projects</span>
+            </button>
+          </div>
+        </div>
+
         {/* AI Agents section - Only for standard workspaces */}
         {workspace.workspaceType !== 'tournament' && (
           <div className="p-4 border-t border-gray-700">
@@ -580,15 +598,6 @@ export default function Sidebar({
               >
                 <ClipboardDocumentListIcon className="w-4 h-4 flex-shrink-0" />
                 <span className="truncate text-sm">Task Board</span>
-              </button>
-              <button
-                onClick={() => navigate(`/workspace/${workspaceId}/projects`)}
-                className="w-full flex items-center gap-2 px-2 py-1 rounded text-left hover:bg-gray-700"
-              >
-                <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-                <span className="truncate text-sm">Projects</span>
               </button>
             </div>
           </div>
