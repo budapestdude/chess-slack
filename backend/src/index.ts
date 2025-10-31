@@ -48,7 +48,7 @@ import marketingRoutes from './routes/marketingRoutes';
 import sprintRoutes from './routes/sprintRoutes';
 import meetingNotesRoutes from './routes/meetingNotesRoutes';
 import projectRoutes from './routes/projectRoutes';
-import taskRoutes from './routes/taskRoutes';
+import { workspaceTaskRouter, projectTaskRouter } from './routes/taskRoutes';
 import healthRoutes from './routes/healthRoutes';
 logger.debug('All routes imported successfully');
 
@@ -187,7 +187,8 @@ app.use('/api/marketing', marketingRoutes);
 app.use('/api/sprints', sprintRoutes);
 app.use('/api/workspaces', meetingNotesRoutes);
 app.use('/api', projectRoutes);
-app.use('/api/workspaces', taskRoutes);
+app.use('/api/workspaces', workspaceTaskRouter);
+app.use('/api', projectTaskRouter);
 app.use('/api', healthRoutes);
 app.use('/api/dms', dmRoutes);
 app.use('/api/users', userRoutes);

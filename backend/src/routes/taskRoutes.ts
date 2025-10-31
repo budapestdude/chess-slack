@@ -2,40 +2,44 @@ import { Router } from 'express';
 import * as taskController from '../controllers/taskController';
 import { authenticateToken } from '../middleware/auth';
 
-const router = Router();
+// Router for workspace-scoped task routes (mounted at /api/workspaces)
+const workspaceTaskRouter = Router();
 
 // Task management
-router.post('/:workspaceId/tasks', authenticateToken, taskController.createTask);
-router.get('/:workspaceId/tasks', authenticateToken, taskController.getTasks);
-router.get('/:workspaceId/tasks/:taskId', authenticateToken, taskController.getTask);
-router.put('/:workspaceId/tasks/:taskId', authenticateToken, taskController.updateTask);
-router.delete('/:workspaceId/tasks/:taskId', authenticateToken, taskController.deleteTask);
+workspaceTaskRouter.post('/:workspaceId/tasks', authenticateToken, taskController.createTask);
+workspaceTaskRouter.get('/:workspaceId/tasks', authenticateToken, taskController.getTasks);
+workspaceTaskRouter.get('/:workspaceId/tasks/:taskId', authenticateToken, taskController.getTask);
+workspaceTaskRouter.put('/:workspaceId/tasks/:taskId', authenticateToken, taskController.updateTask);
+workspaceTaskRouter.delete('/:workspaceId/tasks/:taskId', authenticateToken, taskController.deleteTask);
 
 // Task operations
-router.post('/:workspaceId/tasks/:taskId/assign', authenticateToken, taskController.assignTask);
-router.post('/:workspaceId/tasks/:taskId/start', authenticateToken, taskController.startTask);
-router.post('/:workspaceId/tasks/:taskId/cancel', authenticateToken, taskController.cancelTask);
+workspaceTaskRouter.post('/:workspaceId/tasks/:taskId/assign', authenticateToken, taskController.assignTask);
+workspaceTaskRouter.post('/:workspaceId/tasks/:taskId/start', authenticateToken, taskController.startTask);
+workspaceTaskRouter.post('/:workspaceId/tasks/:taskId/cancel', authenticateToken, taskController.cancelTask);
 
 // Task dependencies
-router.post('/:workspaceId/tasks/:taskId/dependencies', authenticateToken, taskController.addTaskDependency);
+workspaceTaskRouter.post('/:workspaceId/tasks/:taskId/dependencies', authenticateToken, taskController.addTaskDependency);
 
 // Task labels
-router.get('/:workspaceId/tasks/:taskId/labels', authenticateToken, taskController.getTaskLabels);
-router.post('/:workspaceId/tasks/:taskId/labels', authenticateToken, taskController.addTaskLabel);
-router.delete('/:workspaceId/tasks/:taskId/labels/:labelId', authenticateToken, taskController.removeTaskLabel);
+workspaceTaskRouter.get('/:workspaceId/tasks/:taskId/labels', authenticateToken, taskController.getTaskLabels);
+workspaceTaskRouter.post('/:workspaceId/tasks/:taskId/labels', authenticateToken, taskController.addTaskLabel);
+workspaceTaskRouter.delete('/:workspaceId/tasks/:taskId/labels/:labelId', authenticateToken, taskController.removeTaskLabel);
 
 // Task comments
-router.get('/:workspaceId/tasks/:taskId/comments', authenticateToken, taskController.getTaskComments);
-router.post('/:workspaceId/tasks/:taskId/comments', authenticateToken, taskController.addTaskComment);
-router.put('/:workspaceId/tasks/:taskId/comments/:commentId', authenticateToken, taskController.updateTaskComment);
-router.delete('/:workspaceId/tasks/:taskId/comments/:commentId', authenticateToken, taskController.deleteTaskComment);
+workspaceTaskRouter.get('/:workspaceId/tasks/:taskId/comments', authenticateToken, taskController.getTaskComments);
+workspaceTaskRouter.post('/:workspaceId/tasks/:taskId/comments', authenticateToken, taskController.addTaskComment);
+workspaceTaskRouter.put('/:workspaceId/tasks/:taskId/comments/:commentId', authenticateToken, taskController.updateTaskComment);
+workspaceTaskRouter.delete('/:workspaceId/tasks/:taskId/comments/:commentId', authenticateToken, taskController.deleteTaskComment);
+
+// Router for project-scoped task routes (mounted at /api)
+const projectTaskRouter = Router();
 
 // Project-specific task routes
-router.get('/projects/:projectId/tasks', authenticateToken, taskController.getTasksByProject);
-router.get('/sections/:sectionId/tasks', authenticateToken, taskController.getTasksBySection);
-router.post('/tasks/:taskId/move', authenticateToken, taskController.moveTaskToSection);
-router.post('/sections/:sectionId/tasks/reorder', authenticateToken, taskController.reorderTasks);
-router.post('/tasks/:taskId/complete', authenticateToken, taskController.completeTask);
-router.post('/tasks/:taskId/uncomplete', authenticateToken, taskController.uncompleteTask);
+projectTaskRouter.get('/projects/:projectId/tasks', authenticateToken, taskController.getTasksByProject);
+projectTaskRouter.get('/sections/:sectionId/tasks', authenticateToken, taskController.getTasksBySection);
+projectTaskRouter.post('/tasks/:taskId/move', authenticateToken, taskController.moveTaskToSection);
+projectTaskRouter.post('/sections/:sectionId/tasks/reorder', authenticateToken, taskController.reorderTasks);
+projectTaskRouter.post('/tasks/:taskId/complete', authenticateToken, taskController.completeTask);
+projectTaskRouter.post('/tasks/:taskId/uncomplete', authenticateToken, taskController.uncompleteTask);
 
-export default router;
+export { workspaceTaskRouter, projectTaskRouter };
